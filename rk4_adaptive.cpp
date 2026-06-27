@@ -1482,6 +1482,41 @@ void plotLogPhiVsLogEpsilon(const std::vector<EpsPhiRow>& rows, const std::strin
     }
 
     std::string out_path = resolveOutputPath(output_image);
+
+    auto plot_with_python = [&](const std::string& path) -> bool {
+        const char* py_cmd =
+            "python3 -c \"import sys,math;import matplotlib.pyplot as plt;"
+            "rows=[tuple(map(float,l.split())) for l in sys.stdin if l.strip()];"
+            "out=sys.argv[1];"
+            "def series(idx):\n"
+            " x=[]; y=[]\n"
+            " for r in rows:\n"
+            "  eps=r[0]; phi=r[idx]\n"
+            "  if eps>0.0 and phi>0.0 and math.isfinite(phi):\n"
+            "   x.append(math.log10(eps)); y.append(math.log10(phi))\n"
+            " return x,y\n"
+            "xq,yq=series(1); xf,yf=series(2); xt,yt=series(3);"
+            "plt.figure(figsize=(8,5));"
+            "plt.plot(xq,yq,'o-',label='QLT') if xq else None;"
+            "plt.plot(xf,yf,'s-',label='Fereisl') if xf else None;"
+            "plt.plot(xt,yt,'^-',label='TW') if xt else None;"
+            "plt.xlabel('log10(epsilon)'); plt.ylabel('log10(phi)');"
+            "plt.title('log(phi) vs log(epsilon)'); plt.grid(True, alpha=0.3);"
+            "plt.legend(); plt.tight_layout(); plt.savefig(out, dpi=200)\"";
+
+        std::string cmd = std::string(py_cmd) + " '" + path + "'";
+        FILE* py = popen(cmd.c_str(), "w");
+        if (py == nullptr) {
+            return false;
+        }
+
+        for (const auto& r : rows) {
+            std::fprintf(py, "%.17g %.17g %.17g %.17g\n", r.eps, r.phi_qlt, r.phi_fereisl, r.phi_tw);
+        }
+
+        int py_status = pclose(py);
+        return py_status != -1 && WIFEXITED(py_status) && WEXITSTATUS(py_status) == 0;
+    };
     FILE* gp = popen("gnuplot", "w");
     if (gp == nullptr) {
         std::cout << "gnuplot is not installed; skipping log-log plot generation." << std::endl;
@@ -1519,8 +1554,11 @@ void plotLogPhiVsLogEpsilon(const std::vector<EpsPhiRow>& rows, const std::strin
 
     int close_status = pclose(gp);
     if (close_status == -1 || !WIFEXITED(close_status) || WEXITSTATUS(close_status) != 0) {
-        std::cout << "gnuplot failed; skipping log-log plot generation." << std::endl;
-        return;
+        std::cout << "gnuplot failed; trying matplotlib fallback..." << std::endl;
+        if (!plot_with_python(out_path)) {
+            std::cout << "matplotlib fallback also failed; skipping log-log plot generation." << std::endl;
+            return;
+        }
     }
     std::cout << "log(phi) vs log(epsilon) plot written to: " << out_path << std::endl;
 }
@@ -1591,7 +1629,7 @@ int main(int argc, char** argv) {
         eps_scan_phi_end,
         tolerance
     );
-    plotLogPhiVsLogEpsilon(eps_phi_rows, "log_phi_vs_log_epsilon.png");
+    plotLogPhiVsLogEpsilon(eps_phi_rows, "log_phi_vs_log_epsilon_fromcpp.png");
     
     return 0;
 }
