@@ -1,4 +1,4 @@
-// This code is called saturday.cpp in VS code
+// This file is called saturday.cpp in VS Code
 // THIS CODE WAS CREATED ON THURSDAY JUNE 4, 2026
 // THIS FILE COMPARES THE FEREISL-TUCKERWILL 4.5PN EXPRESSIONS TO THE RK4 ADAPTIVE CODE
 
@@ -906,6 +906,22 @@ BinaryState transformTildeStateToActual(const BinaryState& tilde_state, const Ph
     };
 }
 
+static BinaryState approximateTildeFromActual(const BinaryState& actual,
+                                              const PhysicalParams& params,
+                                              bool useTW = false,
+                                              int iterations = 8) {
+    BinaryState guess = actual;
+    for (int i = 0; i < iterations; ++i) {
+        BinaryState mapped = transformTildeStateToActual(guess, params, useTW);
+        guess = {
+            guess.p + (actual.p - mapped.p),
+            guess.alpha + (actual.alpha - mapped.alpha),
+            guess.beta + (actual.beta - mapped.beta)
+        };
+    }
+    return guess;
+}
+
 // ============================================================================
 // ADAPTIVE RK4 INTEGRATOR WITH ERROR ESTIMATION
 // ============================================================================
@@ -1422,6 +1438,12 @@ std::vector<EpsPhiRow> computeLogPhiVsLogEpsilonData(
     for (double eps : epsilon_values) {
         PhysicalParams scan_params = params;
         scan_params.eps = eps;
+        PhysicalParams scan_params_phi0 = params;
+        scan_params_phi0.eps = eps;
+        scan_params_phi0.phi = 0.0;
+
+        BinaryState tilde_fereisl_init = approximateTildeFromActual(initial_state, scan_params_phi0, false);
+        BinaryState tilde_tw_init = approximateTildeFromActual(initial_state, scan_params_phi0, true);
 
         auto rhs_qlt = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double phi) {
             return compute_QLT_RHS_phi(s, p, max_PN_order, phi);
@@ -1434,12 +1456,16 @@ std::vector<EpsPhiRow> computeLogPhiVsLogEpsilonData(
         };
 
         auto result_qlt = integrator.integrate(initial_state, scan_params, rhs_qlt, 0.0, phi_end);
-        auto result_fereisl = integrator.integrate(initial_state, scan_params, rhs_fereisl, 0.0, phi_end);
-        auto result_tw = integrator.integrate(initial_state, scan_params, rhs_tw, 0.0, phi_end);
+    auto result_fereisl = integrator.integrate(tilde_fereisl_init, scan_params, rhs_fereisl, 0.0, phi_end);
+    auto result_tw = integrator.integrate(tilde_tw_init, scan_params, rhs_tw, 0.0, phi_end);
 
         BinaryState s_qlt = result_qlt.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_qlt.states.back();
-        BinaryState s_fereisl = result_fereisl.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_fereisl.states.back();
-        BinaryState s_tw = result_tw.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_tw.states.back();
+    BinaryState s_fereisl_tilde = result_fereisl.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_fereisl.states.back();
+    BinaryState s_tw_tilde = result_tw.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_tw.states.back();
+
+    // Compare end states at a fixed orbital phase in physical coordinates.
+    BinaryState s_fereisl = transformTildeStateToActual(s_fereisl_tilde, scan_params_phi0, false);
+    BinaryState s_tw = transformTildeStateToActual(s_tw_tilde, scan_params_phi0, true);
 
         double dp_qf = std::abs(s_qlt.p - s_fereisl.p);
         double da_qf = std::abs(s_qlt.alpha - s_fereisl.alpha);
