@@ -1534,7 +1534,7 @@ int main() {
         eps_scan_phi_end,
         tolerance
     );
-    plotLogPhiVsLogEpsilon(eps_phi_rows, "log_phi_vs_log_epsilon_fromcpp.png");
+    plotLogPhiVsLogEpsilon(eps_phi_rows, "log_phi_vs_log_epsilon_fromcpp_gauss.png");
     
     return 0;
 }
