@@ -1256,6 +1256,12 @@ struct EpsScanResult {
     int tw_steps;
 };
 
+struct RHSFractionalDiffRow {
+    double eps;
+    double frac_fereisl;
+    double frac_tw;
+};
+
 static int mapSecularOrderToQLTOrder(int max_PN_order) {
     if (max_PN_order <= 2) {
         return max_PN_order;
@@ -1278,6 +1284,129 @@ SecularRHS compute_QLT_RHS_phi(const BinaryState& state,
     int qlt_order = mapSecularOrderToQLTOrder(max_PN_order);
     QLTrhs rhs = computeQLT(K, state.p, state.alpha, state.beta, phi, c_val, qlt_order);
     return {rhs.dp, rhs.dalpha, rhs.dbeta};
+}
+
+static double eccentricity(const BinaryState& state) {
+    return std::sqrt(state.alpha * state.alpha + state.beta * state.beta);
+}
+
+std::vector<RHSFractionalDiffRow> computeRHSFractionalDifferences(
+    const BinaryState& initial_state,
+    const PhysicalParams& params,
+    int max_PN_order,
+    const std::vector<double>& epsilon_values
+) {
+    std::cout << "\n=== Instantaneous RHS Convergence Analysis (de/dtheta) ===" << std::endl;
+    std::cout << "Initial state: p=" << initial_state.p
+              << ", alpha=" << initial_state.alpha
+              << ", beta=" << initial_state.beta << std::endl;
+    std::cout << "Evaluating RHS at fixed initial state for each epsilon..." << std::endl;
+    std::cout << "Observable: |de/dtheta_QLT - de/dtheta_method| / |de/dtheta_QLT|" << std::endl;
+
+    std::vector<RHSFractionalDiffRow> rows;
+    rows.reserve(epsilon_values.size());
+    const double probe_h = 1e-8;
+
+    for (double eps : epsilon_values) {
+        PhysicalParams scan_params = params;
+        scan_params.eps = eps;
+
+        PhysicalParams scan_params_0 = params;
+        scan_params_0.eps = eps;
+        scan_params_0.phi = 0.0;
+
+        PhysicalParams scan_params_1 = params;
+        scan_params_1.eps = eps;
+        scan_params_1.phi = probe_h;
+
+        BinaryState tilde_f_init = approximateTildeFromActual(initial_state, scan_params_0, false);
+        BinaryState tilde_tw_init = approximateTildeFromActual(initial_state, scan_params_0, true);
+
+        auto rhs_qlt = compute_QLT_RHS_phi(initial_state, scan_params, max_PN_order, 0.0);
+        auto rhs_f = compute_secular_RHS_phi(tilde_f_init, scan_params, max_PN_order);
+        auto rhs_tw = compute_secular_RHS_TW_phi(tilde_tw_init, scan_params, max_PN_order);
+
+        BinaryState qlt_next{
+            initial_state.p + probe_h * rhs_qlt[0],
+            initial_state.alpha + probe_h * rhs_qlt[1],
+            initial_state.beta + probe_h * rhs_qlt[2]
+        };
+        double e_dot_qlt = (eccentricity(qlt_next) - eccentricity(initial_state)) / probe_h;
+
+        BinaryState f_next_tilde{
+            tilde_f_init.p + probe_h * rhs_f[0],
+            tilde_f_init.alpha + probe_h * rhs_f[1],
+            tilde_f_init.beta + probe_h * rhs_f[2]
+        };
+        BinaryState f_actual_0 = transformTildeStateToActual(tilde_f_init, scan_params_0, false);
+        BinaryState f_actual_1 = transformTildeStateToActual(f_next_tilde, scan_params_1, false);
+        double e_dot_f = (eccentricity(f_actual_1) - eccentricity(f_actual_0)) / probe_h;
+
+        BinaryState tw_next_tilde{
+            tilde_tw_init.p + probe_h * rhs_tw[0],
+            tilde_tw_init.alpha + probe_h * rhs_tw[1],
+            tilde_tw_init.beta + probe_h * rhs_tw[2]
+        };
+        BinaryState tw_actual_0 = transformTildeStateToActual(tilde_tw_init, scan_params_0, true);
+        BinaryState tw_actual_1 = transformTildeStateToActual(tw_next_tilde, scan_params_1, true);
+        double e_dot_tw = (eccentricity(tw_actual_1) - eccentricity(tw_actual_0)) / probe_h;
+
+        double denom = std::abs(e_dot_qlt) + 1e-30;
+        double frac_f = std::abs(e_dot_qlt - e_dot_f) / denom;
+        double frac_tw = std::abs(e_dot_qlt - e_dot_tw) / denom;
+
+        rows.push_back({eps, frac_f, frac_tw});
+
+        std::cout << std::scientific << std::setprecision(6)
+                  << "  eps=" << std::setprecision(4) << eps
+                  << ": Fereisl frac=" << std::setprecision(6) << frac_f
+                  << " | TW frac=" << frac_tw << std::endl;
+        std::cout << std::defaultfloat;
+    }
+
+    return rows;
+}
+
+void plotRHSFractionalDifferences(const std::vector<RHSFractionalDiffRow>& rows, const std::string& output_image) {
+    if (rows.empty()) {
+        std::cout << "No RHS fractional-difference rows to plot." << std::endl;
+        return;
+    }
+
+    std::string out_path = resolveOutputPath(output_image);
+    auto plot_with_python = [&](const std::string& path) -> bool {
+        const char* py_cmd =
+            "python3 -c \"import sys,math;import matplotlib.pyplot as plt;"
+            "rows=[tuple(map(float,l.split())) for l in sys.stdin if l.strip()];"
+            "out=sys.argv[1];"
+            "xf=[math.log10(r[0]) for r in rows if r[0]>0 and r[1]>0 and math.isfinite(r[1])];"
+            "yf=[math.log10(r[1]) for r in rows if r[0]>0 and r[1]>0 and math.isfinite(r[1])];"
+            "xt=[math.log10(r[0]) for r in rows if r[0]>0 and r[2]>0 and math.isfinite(r[2])];"
+            "yt=[math.log10(r[2]) for r in rows if r[0]>0 and r[2]>0 and math.isfinite(r[2])];"
+            "plt.figure(figsize=(8,5));"
+            "plt.plot(xf,yf,'o-',label='Fereisl vs QLT') if xf else None;"
+            "plt.plot(xt,yt,'s-',label='TW vs QLT') if xt else None;"
+            "plt.xlabel('log10(epsilon)'); plt.ylabel('log10(fractional difference)');"
+            "plt.title('Instantaneous RHS Fractional Differences');"
+            "plt.grid(True, alpha=0.3); plt.legend(); plt.tight_layout(); plt.savefig(out, dpi=200)\"";
+
+        std::string cmd = std::string(py_cmd) + " '" + path + "'";
+        FILE* py = popen(cmd.c_str(), "w");
+        if (py == nullptr) {
+            return false;
+        }
+        for (const auto& r : rows) {
+            std::fprintf(py, "%.17g %.17g %.17g\n", r.eps, r.frac_fereisl, r.frac_tw);
+        }
+        int py_status = pclose(py);
+        return py_status != -1 && WIFEXITED(py_status) && WEXITSTATUS(py_status) == 0;
+    };
+
+    if (!plot_with_python(out_path)) {
+        std::cout << "matplotlib plotting failed; skipping RHS fractional-difference plot generation." << std::endl;
+        return;
+    }
+    std::cout << "RHS fractional-difference plot written to: " << out_path << std::endl;
 }
 
 void compareEvolutionMethodsPhiWithQLT(
@@ -1642,6 +1771,15 @@ int main(int argc, char** argv) {
     std::cout << "Phi-transformed integration: phi = [" << phi_start << ", " << phi_end << "]" << std::endl;
 
     std::vector<double> eps_scan_values{0.032, 0.016, 0.008, 0.004, 0.002};
+
+    auto rhs_frac_rows = computeRHSFractionalDifferences(
+        initial_state,
+        params,
+        max_PN_order,
+        eps_scan_values
+    );
+    plotRHSFractionalDifferences(rhs_frac_rows, "rhs_fractional_differences_fromcpp_rk4.png");
+
     double eps_scan_phi_end = 100.0;
     std::cout << "Epsilon scan phi_end: " << eps_scan_phi_end << std::endl;
 
