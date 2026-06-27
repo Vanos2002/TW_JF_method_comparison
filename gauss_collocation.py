@@ -1,4 +1,4 @@
-# This file is called gauss_collocation.py in VS code
+# This code is called gauss_collocation.py in VS Code
 # THIS CODE WAS CREATED ON THURSDAY JUNE 4, 2026
 # THIS FILE COMPARES THE FEREISL-TUCKERWILL 4.5PN EXPRESSIONS TO AN
 # IMPLICIT GAUSS-LEGENDRE COLLOCATION INTEGRATOR
@@ -763,6 +763,22 @@ def transform_tilde_state_to_actual(tilde: BinaryState,
     )
 
 
+def _approximate_tilde_from_actual(actual: BinaryState,
+                                   params: PhysicalParams,
+                                   use_TW: bool = False,
+                                   iterations: int = 8) -> BinaryState:
+    """Fixed-point inversion of the near-identity PN map actual = T(tilde)."""
+    guess = BinaryState(actual.p, actual.alpha, actual.beta)
+    for _ in range(iterations):
+        mapped = transform_tilde_state_to_actual(guess, params, use_TW)
+        guess = BinaryState(
+            p=guess.p + (actual.p - mapped.p),
+            alpha=guess.alpha + (actual.alpha - mapped.alpha),
+            beta=guess.beta + (actual.beta - mapped.beta),
+        )
+    return guess
+
+
 # ---------------------------------------------------------------------------
 # Adaptive Gauss-Legendre Collocation Integrator
 # ---------------------------------------------------------------------------
@@ -973,8 +989,8 @@ def compute_rhs_fractional_differences(
         epsilon_values: List[float]
     ) -> List[Tuple[float, float, float]]:
     """
-    For each epsilon, evaluate the instantaneous RHS once at the initial orbital state
-    and compute the fractional difference in de/dtheta:
+    For each epsilon, evaluate a one-step instantaneous rate probe and compute
+    the fractional difference in de/dtheta in a common (physical) coordinate system:
     
         Δ(de/dtheta) = |de/dtheta_QLT − de/dtheta_Fereisl| / |de/dtheta_QLT|
         
@@ -994,19 +1010,48 @@ def compute_rhs_fractional_differences(
     print(f"On log-log plot: slope +2 indicates next missing PN order is eps² away\n")
     
     rows: List[Tuple[float, float, float]] = []
+    probe_h = 1e-8
     
     for eps in epsilon_values:
         sp = PhysicalParams(params.G, params.M, params.eta, params.phi, eps)
+        sp0 = PhysicalParams(params.G, params.M, params.eta, 0.0, eps)
+        sp1 = PhysicalParams(params.G, params.M, params.eta, probe_h, eps)
+
+        # Recover approximate tilde states that map to the same physical initial state.
+        tilde_fereisl = _approximate_tilde_from_actual(initial_state, sp0, use_TW=False)
+        tilde_tw = _approximate_tilde_from_actual(initial_state, sp0, use_TW=True)
         
         # Evaluate RHS at initial state for all three methods
         rhs_qlt = compute_qlt_rhs_phi(initial_state, sp, max_pn_order, 0.0)
-        rhs_fereisl = compute_secular_rhs_phi(initial_state, sp, max_pn_order)
-        rhs_tw = compute_secular_rhs_TW_phi(initial_state, sp, max_pn_order)
-        
-        # Extract eccentricity rate: de/dphi = sqrt(dalpha/dphi^2 + dbeta/dphi^2)
-        e_dot_qlt = math.sqrt(rhs_qlt[1]**2 + rhs_qlt[2]**2)
-        e_dot_fereisl = math.sqrt(rhs_fereisl[1]**2 + rhs_fereisl[2]**2)
-        e_dot_tw = math.sqrt(rhs_tw[1]**2 + rhs_tw[2]**2)
+        rhs_fereisl = compute_secular_rhs_phi(tilde_fereisl, sp, max_pn_order)
+        rhs_tw = compute_secular_rhs_TW_phi(tilde_tw, sp, max_pn_order)
+
+        # QLT is already physical.
+        qlt_next = BinaryState(
+            p=initial_state.p + probe_h * rhs_qlt[0],
+            alpha=initial_state.alpha + probe_h * rhs_qlt[1],
+            beta=initial_state.beta + probe_h * rhs_qlt[2],
+        )
+        e_dot_qlt = (_eccentricity(qlt_next) - _eccentricity(initial_state)) / probe_h
+
+        # Fereisl/TW are in tilde coordinates; transform probe endpoints to physical first.
+        fereisl_next_tilde = BinaryState(
+            p=tilde_fereisl.p + probe_h * rhs_fereisl[0],
+            alpha=tilde_fereisl.alpha + probe_h * rhs_fereisl[1],
+            beta=tilde_fereisl.beta + probe_h * rhs_fereisl[2],
+        )
+        fereisl_actual_0 = transform_tilde_state_to_actual(tilde_fereisl, sp0, use_TW=False)
+        fereisl_actual_1 = transform_tilde_state_to_actual(fereisl_next_tilde, sp1, use_TW=False)
+        e_dot_fereisl = (_eccentricity(fereisl_actual_1) - _eccentricity(fereisl_actual_0)) / probe_h
+
+        tw_next_tilde = BinaryState(
+            p=tilde_tw.p + probe_h * rhs_tw[0],
+            alpha=tilde_tw.alpha + probe_h * rhs_tw[1],
+            beta=tilde_tw.beta + probe_h * rhs_tw[2],
+        )
+        tw_actual_0 = transform_tilde_state_to_actual(tilde_tw, sp0, use_TW=True)
+        tw_actual_1 = transform_tilde_state_to_actual(tw_next_tilde, sp1, use_TW=True)
+        e_dot_tw = (_eccentricity(tw_actual_1) - _eccentricity(tw_actual_0)) / probe_h
         
         # Compute fractional difference: |QLT - method| / |QLT|
         denom = abs(e_dot_qlt) + 1e-30  # avoid division by zero
@@ -1167,6 +1212,18 @@ def compute_log_phi_vs_log_epsilon_data(
     rows: List[Tuple[float, float, float, float]] = []
     for eps in epsilon_values:
         sp = PhysicalParams(params.G, params.M, params.eta, params.phi, eps)
+        sp0 = PhysicalParams(params.G, params.M, params.eta, 0.0, eps)
+
+        tilde_fereisl_init = _approximate_tilde_from_actual(
+            initial_state,
+            sp0,
+            use_TW=False,
+        )
+        tilde_tw_init = _approximate_tilde_from_actual(
+            initial_state,
+            sp0,
+            use_TW=True,
+        )
 
         def rhs_qlt(s, p, phi):
             return compute_qlt_rhs_phi(s, p, max_pn_order, phi)
@@ -1178,13 +1235,32 @@ def compute_log_phi_vs_log_epsilon_data(
             return compute_secular_rhs_TW_phi(s, p, max_pn_order)
 
         result_qlt = integrator.integrate(initial_state, sp, rhs_qlt, 0.0, phi_end)
-        result_fereisl = integrator.integrate(initial_state, sp, rhs_fereisl, 0.0, phi_end)
-        result_tw = integrator.integrate(initial_state, sp, rhs_tw, 0.0, phi_end)
+        result_fereisl = integrator.integrate(tilde_fereisl_init, sp, rhs_fereisl, 0.0, phi_end)
+        result_tw = integrator.integrate(tilde_tw_init, sp, rhs_tw, 0.0, phi_end)
 
-        # Extract end-state orbital elements
+        # Extract end-state orbital elements in a common (physical) coordinate system.
         s_qlt = result_qlt.states[-1] if result_qlt.states else BinaryState()
-        s_fereisl = result_fereisl.states[-1] if result_fereisl.states else BinaryState()
-        s_tw = result_tw.states[-1] if result_tw.states else BinaryState()
+        s_fereisl_tilde = result_fereisl.states[-1] if result_fereisl.states else BinaryState()
+        s_tw_tilde = result_tw.states[-1] if result_tw.states else BinaryState()
+
+        # Get final phi values for reference
+        phi_qlt = result_qlt.theta[-1] if result_qlt.theta else phi_end
+        phi_fereisl = result_fereisl.theta[-1] if result_fereisl.theta else phi_end
+        phi_tw = result_tw.theta[-1] if result_tw.theta else phi_end
+
+        # Compare all methods at a fixed orbital phase in physical coordinates.
+        compare_params = PhysicalParams(params.G, params.M, params.eta, 0.0, eps)
+
+        s_fereisl = transform_tilde_state_to_actual(
+            s_fereisl_tilde,
+            compare_params,
+            use_TW=False,
+        )
+        s_tw = transform_tilde_state_to_actual(
+            s_tw_tilde,
+            compare_params,
+            use_TW=True,
+        )
 
         # Compute end-state differences
         dp_qf = abs(s_qlt.p - s_fereisl.p)
@@ -1198,11 +1274,6 @@ def compute_log_phi_vs_log_epsilon_data(
         dp_ft = abs(s_fereisl.p - s_tw.p)
         da_ft = abs(s_fereisl.alpha - s_tw.alpha)
         db_ft = abs(s_fereisl.beta - s_tw.beta)
-
-        # Get final phi values for reference
-        phi_qlt = result_qlt.theta[-1] if result_qlt.theta else phi_end
-        phi_fereisl = result_fereisl.theta[-1] if result_fereisl.theta else phi_end
-        phi_tw = result_tw.theta[-1] if result_tw.theta else phi_end
 
         rows.append((eps, phi_qlt, phi_fereisl, phi_tw))
 
