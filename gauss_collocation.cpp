@@ -1,4 +1,4 @@
-// This file is called sunday.cpp in VS code
+// This file is called sunday.cpp in VS Code
 // THIS CODE WAS CREATED ON THURSDAY JUNE 4, 2026
 // THIS FILE COMPARES THE FEREISL-TUCKERWILL 4.5PN EXPRESSIONS TO THE RK4 ADAPTIVE CODE
 
@@ -636,7 +636,8 @@ SecularRHS secular_3_5PN(const BinaryState& state, const PhysicalParams& params)
                     b4 * (1483.0 + 4424.0 * eta) + 
                     a2 * (8.0 * (758.0 + 889.0 * eta) + b2 * (2966.0 + 8848.0 * eta));
     
-    rhs[0] = -(GM3 * GMp_3_2 * eta * term_p) / (210.0 * p * p * p);
+    double eps2 = params.eps * params.eps;
+    rhs[0] = -eps2 * (GM3 * GMp_3_2 * eta * term_p) / (210.0 * p * p * p);
     
     // dalpha/dtheta
     double term_alpha = -8.0 * (18049.0 + 4452.0 * eta) + 
@@ -645,7 +646,7 @@ SecularRHS secular_3_5PN(const BinaryState& state, const PhysicalParams& params)
                        b4 * (2251.0 + 15064.0 * eta) + 
                        a2 * (34768.0 + 51212.0 * eta + b2 * (4502.0 + 30128.0 * eta));
     
-    rhs[1] = -(GM3 * GMp_3_2 * alpha * eta * term_alpha) / (840.0 * p * p * p * p);
+    rhs[1] = -eps2 * (GM3 * GMp_3_2 * alpha * eta * term_alpha) / (840.0 * p * p * p * p);
     
     // dbeta/dtheta
     double term_beta = -8.0 * (18049.0 + 4452.0 * eta) + 
@@ -654,7 +655,7 @@ SecularRHS secular_3_5PN(const BinaryState& state, const PhysicalParams& params)
                       b4 * (2251.0 + 15064.0 * eta) + 
                       a2 * (34768.0 + 51212.0 * eta + b2 * (4502.0 + 30128.0 * eta));
     
-    rhs[2] = -(GM3 * GMp_3_2 * beta * eta * term_beta) / (840.0 * p * p * p * p);
+    rhs[2] = -eps2 * (GM3 * GMp_3_2 * beta * eta * term_beta) / (840.0 * p * p * p * p);
     
     return rhs;
 }
@@ -699,7 +700,9 @@ SecularRHS secular_4_5PN(const BinaryState& state, const PhysicalParams& params)
                               4.0 * (-64831.0 + 1186209.0 * eta + 64575.0 * eta2) + 
                               b2 * (631994.0 - 3590910.0 * eta + 2659104.0 * eta2));
     
-    rhs[0] = (GM4 * GMp_5_2 * eta * term_p) / (11340.0 * p * p * p * p);
+    double eps2 = params.eps * params.eps;
+    double eps4 = eps2 * eps2;
+    rhs[0] = eps4 * (GM4 * GMp_5_2 * eta * term_p) / (11340.0 * p * p * p * p);
     
     // dalpha/dtheta
     double term_alpha = 16.0 * (-2739835.0 - 1394559.0 * eta + 145152.0 * eta2) + 
@@ -713,10 +716,10 @@ SecularRHS secular_4_5PN(const BinaryState& state, const PhysicalParams& params)
                              12.0 * (-354911.0 + 4848903.0 * eta + 511413.0 * eta2) + 
                              4.0 * b2 * (605645.0 - 8079297.0 * eta + 5758704.0 * eta2));
     
-    rhs[1] = (GM4 * GMp_5_2 * alpha * eta * term_alpha) / (30240.0 * p * p * p * p * p);
+    rhs[1] = eps4 * (GM4 * GMp_5_2 * alpha * eta * term_alpha) / (30240.0 * p * p * p * p * p);
     
     // dbeta/dtheta (same as dalpha/dtheta but multiplied by beta instead of alpha)
-    rhs[2] = (GM4 * GMp_5_2 * beta * eta * term_alpha) / (30240.0 * p * p * p * p * p);
+    rhs[2] = eps4 * (GM4 * GMp_5_2 * beta * eta * term_alpha) / (30240.0 * p * p * p * p * p);
     
     return rhs;
 }
@@ -828,7 +831,9 @@ SecularRHS secular_4_5PN_TW(const BinaryState& state, const PhysicalParams& para
                          9.0 * b4 * (527.0 + 84.0 * eta * (-75.0 + 632.0 * eta)) + 
                          b2 * (2.0 * (947991.0 + 27.0 * eta * (-199495.0 + 147728.0 * eta))));
     
-    rhs[0] = (GM4 * GMp_5_2 * eta * term_p) / (11340.0 * p * p * p * p);
+    double eps2 = params.eps * params.eps;
+    double eps4 = eps2 * eps2;
+    rhs[0] = eps4 * (GM4 * GMp_5_2 * eta * term_p) / (11340.0 * p * p * p * p);
     
     // dalpha/dtheta (Tucker-Will 4.5PN)
     double term_alpha = 43837360.0 
@@ -843,10 +848,10 @@ SecularRHS secular_4_5PN_TW(const BinaryState& state, const PhysicalParams& para
                              (-12.0) * (-354911.0 + 4848303.0 * eta + 511413.0 * eta * eta) + 
                              (-4.0) * b2 * (605645.0 + 9.0 * eta * (-898433.0 + 639856.0 * eta)));
     
-    rhs[1] = -(alpha * eta * term_alpha * GM4 * GMp_5_2) / (30240.0 * p * p * p * p * p);
+    rhs[1] = -eps4 * (alpha * eta * term_alpha * GM4 * GMp_5_2) / (30240.0 * p * p * p * p * p);
     
     // dbeta/dtheta (Tucker-Will 4.5PN - same as dalpha but with beta)
-    rhs[2] = -(beta * eta * term_alpha * GM4 * GMp_5_2) / (30240.0 * p * p * p * p * p);
+    rhs[2] = -eps4 * (beta * eta * term_alpha * GM4 * GMp_5_2) / (30240.0 * p * p * p * p * p);
     
     return rhs;
 }
@@ -895,6 +900,22 @@ BinaryState transformTildeStateToActual(const BinaryState& tilde_state, const Ph
         tilde_state.alpha + eps2 * Y2[1] + eps4 * Y4[1],
         tilde_state.beta + eps2 * Y2[2] + eps4 * Y4[2]
     };
+}
+
+static BinaryState approximateTildeFromActual(const BinaryState& actual,
+                                              const PhysicalParams& params,
+                                              bool useTW = false,
+                                              int iterations = 8) {
+    BinaryState guess = actual;
+    for (int i = 0; i < iterations; ++i) {
+        BinaryState mapped = transformTildeStateToActual(guess, params, useTW);
+        guess = {
+            guess.p + (actual.p - mapped.p),
+            guess.alpha + (actual.alpha - mapped.alpha),
+            guess.beta + (actual.beta - mapped.beta)
+        };
+    }
+    return guess;
 }
 
 static std::string resolveOutputPath(const std::string& output_file) {
@@ -1224,6 +1245,10 @@ SecularRHS compute_QLT_RHS_phi(const BinaryState& state,
     return {rhs.dp, rhs.dalpha, rhs.dbeta};
 }
 
+static double eccentricity(const BinaryState& state) {
+    return std::sqrt(state.alpha * state.alpha + state.beta * state.beta);
+}
+
 std::vector<RHSFractionalDiffRow> computeRHSFractionalDifferences(
     const BinaryState& initial_state,
     const PhysicalParams& params,
@@ -1239,18 +1264,51 @@ std::vector<RHSFractionalDiffRow> computeRHSFractionalDifferences(
 
     std::vector<RHSFractionalDiffRow> rows;
     rows.reserve(epsilon_values.size());
+    const double probe_h = 1e-8;
 
     for (double eps : epsilon_values) {
         PhysicalParams scan_params = params;
         scan_params.eps = eps;
 
-        auto rhs_qlt = compute_QLT_RHS_phi(initial_state, scan_params, max_PN_order, 0.0);
-        auto rhs_f = compute_secular_RHS_phi(initial_state, scan_params, max_PN_order);
-        auto rhs_tw = compute_secular_RHS_TW_phi(initial_state, scan_params, max_PN_order);
+        PhysicalParams scan_params_0 = params;
+        scan_params_0.eps = eps;
+        scan_params_0.phi = 0.0;
 
-        double e_dot_qlt = std::sqrt(rhs_qlt[1] * rhs_qlt[1] + rhs_qlt[2] * rhs_qlt[2]);
-        double e_dot_f = std::sqrt(rhs_f[1] * rhs_f[1] + rhs_f[2] * rhs_f[2]);
-        double e_dot_tw = std::sqrt(rhs_tw[1] * rhs_tw[1] + rhs_tw[2] * rhs_tw[2]);
+        PhysicalParams scan_params_1 = params;
+        scan_params_1.eps = eps;
+        scan_params_1.phi = probe_h;
+
+        BinaryState tilde_f_init = approximateTildeFromActual(initial_state, scan_params_0, false);
+        BinaryState tilde_tw_init = approximateTildeFromActual(initial_state, scan_params_0, true);
+
+        auto rhs_qlt = compute_QLT_RHS_phi(initial_state, scan_params, max_PN_order, 0.0);
+        auto rhs_f = compute_secular_RHS_phi(tilde_f_init, scan_params, max_PN_order);
+        auto rhs_tw = compute_secular_RHS_TW_phi(tilde_tw_init, scan_params, max_PN_order);
+
+        BinaryState qlt_next{
+            initial_state.p + probe_h * rhs_qlt[0],
+            initial_state.alpha + probe_h * rhs_qlt[1],
+            initial_state.beta + probe_h * rhs_qlt[2]
+        };
+        double e_dot_qlt = (eccentricity(qlt_next) - eccentricity(initial_state)) / probe_h;
+
+        BinaryState f_next_tilde{
+            tilde_f_init.p + probe_h * rhs_f[0],
+            tilde_f_init.alpha + probe_h * rhs_f[1],
+            tilde_f_init.beta + probe_h * rhs_f[2]
+        };
+        BinaryState f_actual_0 = transformTildeStateToActual(tilde_f_init, scan_params_0, false);
+        BinaryState f_actual_1 = transformTildeStateToActual(f_next_tilde, scan_params_1, false);
+        double e_dot_f = (eccentricity(f_actual_1) - eccentricity(f_actual_0)) / probe_h;
+
+        BinaryState tw_next_tilde{
+            tilde_tw_init.p + probe_h * rhs_tw[0],
+            tilde_tw_init.alpha + probe_h * rhs_tw[1],
+            tilde_tw_init.beta + probe_h * rhs_tw[2]
+        };
+        BinaryState tw_actual_0 = transformTildeStateToActual(tilde_tw_init, scan_params_0, true);
+        BinaryState tw_actual_1 = transformTildeStateToActual(tw_next_tilde, scan_params_1, true);
+        double e_dot_tw = (eccentricity(tw_actual_1) - eccentricity(tw_actual_0)) / probe_h;
 
         double denom = std::abs(e_dot_qlt) + 1e-30;
         double frac_f = std::abs(e_dot_qlt - e_dot_f) / denom;
@@ -1335,6 +1393,12 @@ std::vector<EpsPhiRow> computeLogPhiVsLogEpsilonData(
     for (double eps : epsilon_values) {
         PhysicalParams scan_params = params;
         scan_params.eps = eps;
+        PhysicalParams scan_params_phi0 = params;
+        scan_params_phi0.eps = eps;
+        scan_params_phi0.phi = 0.0;
+
+        BinaryState tilde_fereisl_init = approximateTildeFromActual(initial_state, scan_params_phi0, false);
+        BinaryState tilde_tw_init = approximateTildeFromActual(initial_state, scan_params_phi0, true);
 
         auto rhs_qlt = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double phi) {
             return compute_QLT_RHS_phi(s, p, max_PN_order, phi);
@@ -1347,12 +1411,16 @@ std::vector<EpsPhiRow> computeLogPhiVsLogEpsilonData(
         };
 
         auto result_qlt = integrator.integrate(initial_state, scan_params, rhs_qlt, 0.0, phi_end);
-        auto result_fereisl = integrator.integrate(initial_state, scan_params, rhs_fereisl, 0.0, phi_end);
-        auto result_tw = integrator.integrate(initial_state, scan_params, rhs_tw, 0.0, phi_end);
+    auto result_fereisl = integrator.integrate(tilde_fereisl_init, scan_params, rhs_fereisl, 0.0, phi_end);
+    auto result_tw = integrator.integrate(tilde_tw_init, scan_params, rhs_tw, 0.0, phi_end);
 
         BinaryState s_qlt = result_qlt.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_qlt.states.back();
-        BinaryState s_fereisl = result_fereisl.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_fereisl.states.back();
-        BinaryState s_tw = result_tw.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_tw.states.back();
+    BinaryState s_fereisl_tilde = result_fereisl.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_fereisl.states.back();
+    BinaryState s_tw_tilde = result_tw.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_tw.states.back();
+
+    // Compare end states at a fixed orbital phase in physical coordinates.
+    BinaryState s_fereisl = transformTildeStateToActual(s_fereisl_tilde, scan_params_phi0, false);
+    BinaryState s_tw = transformTildeStateToActual(s_tw_tilde, scan_params_phi0, true);
 
         double dp_qf = std::abs(s_qlt.p - s_fereisl.p);
         double da_qf = std::abs(s_qlt.alpha - s_fereisl.alpha);
@@ -1505,7 +1573,7 @@ int main() {
     double tolerance = 1e-8;
     int max_PN_order = 5;
     
-    std::cout << "=== Adaptive RK4 Integration Comparison ===" << std::endl;
+    std::cout << "=== Adaptive Gauss Collocation Integration Comparison ===" << std::endl;
     std::cout << "PN order: " << max_PN_order << " (4.5PN)" << std::endl;
     std::cout << "Tolerance: " << tolerance << std::endl;
     std::cout << "Integration: theta = [" << theta_start << ", " << theta_end << "]" << std::endl;
@@ -1534,7 +1602,7 @@ int main() {
         eps_scan_phi_end,
         tolerance
     );
-    plotLogPhiVsLogEpsilon(eps_phi_rows, "log_phi_vs_log_epsilon_fromcpp_gauss.png");
+    plotLogPhiVsLogEpsilon(eps_phi_rows, "log_phi_vs_log_epsilon_fromcpp.png");
     
     return 0;
 }
