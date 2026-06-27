@@ -1326,7 +1326,7 @@ def main() -> None:
         phi_end=eps_scan_phi_end,
         tolerance=tolerance,
     )
-    plot_log_phi_vs_log_epsilon(eps_phi_rows, "gauss_log_phi_vs_log_epsilon.png")
+    plot_log_phi_vs_log_epsilon(eps_phi_rows, "gauss_log_phi_vs_log_epsilon_frompy.png")
 
 
 if __name__ == "__main__":
