@@ -1,4 +1,3 @@
-// This code is called saturday.cpp in VS code
 // THIS CODE WAS CREATED ON THURSDAY JUNE 4, 2026
 // THIS FILE COMPARES THE FEREISL-TUCKERWILL 4.5PN EXPRESSIONS TO THE RK4 ADAPTIVE CODE
 
@@ -20,6 +19,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <chrono>
+#include <sys/wait.h>
 using namespace std;
 
 // Constants (geometrized units)
@@ -639,7 +639,8 @@ SecularRHS secular_3_5PN(const BinaryState& state, const PhysicalParams& params)
                     b4 * (1483.0 + 4424.0 * eta) + 
                     a2 * (8.0 * (758.0 + 889.0 * eta) + b2 * (2966.0 + 8848.0 * eta));
     
-    rhs[0] = -(GM3 * GMp_3_2 * eta * term_p) / (210.0 * p * p * p);
+    double eps2 = params.eps * params.eps;
+    rhs[0] = -eps2 * (GM3 * GMp_3_2 * eta * term_p) / (210.0 * p * p * p);
     
     // dalpha/dtheta
     double term_alpha = -8.0 * (18049.0 + 4452.0 * eta) + 
@@ -648,7 +649,7 @@ SecularRHS secular_3_5PN(const BinaryState& state, const PhysicalParams& params)
                        b4 * (2251.0 + 15064.0 * eta) + 
                        a2 * (34768.0 + 51212.0 * eta + b2 * (4502.0 + 30128.0 * eta));
     
-    rhs[1] = -(GM3 * GMp_3_2 * alpha * eta * term_alpha) / (840.0 * p * p * p * p);
+    rhs[1] = -eps2 * (GM3 * GMp_3_2 * alpha * eta * term_alpha) / (840.0 * p * p * p * p);
     
     // dbeta/dtheta
     double term_beta = -8.0 * (18049.0 + 4452.0 * eta) + 
@@ -657,7 +658,7 @@ SecularRHS secular_3_5PN(const BinaryState& state, const PhysicalParams& params)
                       b4 * (2251.0 + 15064.0 * eta) + 
                       a2 * (34768.0 + 51212.0 * eta + b2 * (4502.0 + 30128.0 * eta));
     
-    rhs[2] = -(GM3 * GMp_3_2 * beta * eta * term_beta) / (840.0 * p * p * p * p);
+    rhs[2] = -eps2 * (GM3 * GMp_3_2 * beta * eta * term_beta) / (840.0 * p * p * p * p);
     
     return rhs;
 }
@@ -702,7 +703,9 @@ SecularRHS secular_4_5PN(const BinaryState& state, const PhysicalParams& params)
                               4.0 * (-64831.0 + 1186209.0 * eta + 64575.0 * eta2) + 
                               b2 * (631994.0 - 3590910.0 * eta + 2659104.0 * eta2));
     
-    rhs[0] = (GM4 * GMp_5_2 * eta * term_p) / (11340.0 * p * p * p * p);
+    double eps2 = params.eps * params.eps;
+    double eps4 = eps2 * eps2;
+    rhs[0] = eps4 * (GM4 * GMp_5_2 * eta * term_p) / (11340.0 * p * p * p * p);
     
     // dalpha/dtheta
     double term_alpha = 16.0 * (-2739835.0 - 1394559.0 * eta + 145152.0 * eta2) + 
@@ -716,10 +719,10 @@ SecularRHS secular_4_5PN(const BinaryState& state, const PhysicalParams& params)
                              12.0 * (-354911.0 + 4848903.0 * eta + 511413.0 * eta2) + 
                              4.0 * b2 * (605645.0 - 8079297.0 * eta + 5758704.0 * eta2));
     
-    rhs[1] = (GM4 * GMp_5_2 * alpha * eta * term_alpha) / (30240.0 * p * p * p * p * p);
+    rhs[1] = eps4 * (GM4 * GMp_5_2 * alpha * eta * term_alpha) / (30240.0 * p * p * p * p * p);
     
     // dbeta/dtheta (same as dalpha/dtheta but multiplied by beta instead of alpha)
-    rhs[2] = (GM4 * GMp_5_2 * beta * eta * term_alpha) / (30240.0 * p * p * p * p * p);
+    rhs[2] = eps4 * (GM4 * GMp_5_2 * beta * eta * term_alpha) / (30240.0 * p * p * p * p * p);
     
     return rhs;
 }
@@ -831,7 +834,9 @@ SecularRHS secular_4_5PN_TW(const BinaryState& state, const PhysicalParams& para
                          9.0 * b4 * (527.0 + 84.0 * eta * (-75.0 + 632.0 * eta)) + 
                          b2 * (2.0 * (947991.0 + 27.0 * eta * (-199495.0 + 147728.0 * eta))));
     
-    rhs[0] = (GM4 * GMp_5_2 * eta * term_p) / (11340.0 * p * p * p * p);
+    double eps2 = params.eps * params.eps;
+    double eps4 = eps2 * eps2;
+    rhs[0] = eps4 * (GM4 * GMp_5_2 * eta * term_p) / (11340.0 * p * p * p * p);
     
     // dalpha/dtheta (Tucker-Will 4.5PN)
     double term_alpha = 43837360.0 
@@ -846,10 +851,10 @@ SecularRHS secular_4_5PN_TW(const BinaryState& state, const PhysicalParams& para
                              (-12.0) * (-354911.0 + 4848303.0 * eta + 511413.0 * eta * eta) + 
                              (-4.0) * b2 * (605645.0 + 9.0 * eta * (-898433.0 + 639856.0 * eta)));
     
-    rhs[1] = -(alpha * eta * term_alpha * GM4 * GMp_5_2) / (30240.0 * p * p * p * p * p);
+    rhs[1] = -eps4 * (alpha * eta * term_alpha * GM4 * GMp_5_2) / (30240.0 * p * p * p * p * p);
     
     // dbeta/dtheta (Tucker-Will 4.5PN - same as dalpha but with beta)
-    rhs[2] = -(beta * eta * term_alpha * GM4 * GMp_5_2) / (30240.0 * p * p * p * p * p);
+    rhs[2] = -eps4 * (beta * eta * term_alpha * GM4 * GMp_5_2) / (30240.0 * p * p * p * p * p);
     
     return rhs;
 }
@@ -1511,7 +1516,11 @@ void plotLogPhiVsLogEpsilon(const std::vector<EpsPhiRow>& rows, const std::strin
     }
     fprintf(gp, "e\\n");
 
-    pclose(gp);
+    int close_status = pclose(gp);
+    if (close_status == -1 || !WIFEXITED(close_status) || WEXITSTATUS(close_status) != 0) {
+        std::cout << "gnuplot failed; skipping log-log plot generation." << std::endl;
+        return;
+    }
     std::cout << "log(phi) vs log(epsilon) plot written to: " << out_path << std::endl;
 }
 
