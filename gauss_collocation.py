@@ -1,4 +1,4 @@
-# This code is called gauss_collocation.py in VS Code
+# This file is called gauss_collocation.py in VS Code
 # THIS CODE WAS CREATED ON THURSDAY JUNE 4, 2026
 # THIS FILE COMPARES THE FEREISL-TUCKERWILL 4.5PN EXPRESSIONS TO AN
 # IMPLICIT GAUSS-LEGENDRE COLLOCATION INTEGRATOR
@@ -1020,7 +1020,7 @@ def compute_rhs_fractional_differences(
         # Recover approximate tilde states that map to the same physical initial state.
         tilde_fereisl = _approximate_tilde_from_actual(initial_state, sp0, use_TW=False)
         tilde_tw = _approximate_tilde_from_actual(initial_state, sp0, use_TW=True)
-        
+
         # Evaluate RHS at initial state for all three methods
         rhs_qlt = compute_qlt_rhs_phi(initial_state, sp, max_pn_order, 0.0)
         rhs_fereisl = compute_secular_rhs_phi(tilde_fereisl, sp, max_pn_order)
@@ -1243,14 +1243,7 @@ def compute_log_phi_vs_log_epsilon_data(
         s_fereisl_tilde = result_fereisl.states[-1] if result_fereisl.states else BinaryState()
         s_tw_tilde = result_tw.states[-1] if result_tw.states else BinaryState()
 
-        # Get final phi values for reference
-        phi_qlt = result_qlt.theta[-1] if result_qlt.theta else phi_end
-        phi_fereisl = result_fereisl.theta[-1] if result_fereisl.theta else phi_end
-        phi_tw = result_tw.theta[-1] if result_tw.theta else phi_end
-
-        # Compare all methods at a fixed orbital phase in physical coordinates.
         compare_params = PhysicalParams(params.G, params.M, params.eta, 0.0, eps)
-
         s_fereisl = transform_tilde_state_to_actual(
             s_fereisl_tilde,
             compare_params,
@@ -1274,6 +1267,11 @@ def compute_log_phi_vs_log_epsilon_data(
         dp_ft = abs(s_fereisl.p - s_tw.p)
         da_ft = abs(s_fereisl.alpha - s_tw.alpha)
         db_ft = abs(s_fereisl.beta - s_tw.beta)
+
+        # Get final phi values for reference
+        phi_qlt = result_qlt.theta[-1] if result_qlt.theta else phi_end
+        phi_fereisl = result_fereisl.theta[-1] if result_fereisl.theta else phi_end
+        phi_tw = result_tw.theta[-1] if result_tw.theta else phi_end
 
         rows.append((eps, phi_qlt, phi_fereisl, phi_tw))
 
@@ -1397,7 +1395,7 @@ def main() -> None:
         phi_end=eps_scan_phi_end,
         tolerance=tolerance,
     )
-    plot_log_phi_vs_log_epsilon(eps_phi_rows, "gauss_log_phi_vs_log_epsilon_frompy.png")
+    plot_log_phi_vs_log_epsilon(eps_phi_rows, "gauss_log_phi_vs_log_epsilon.png")
 
 
 if __name__ == "__main__":
