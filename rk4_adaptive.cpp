@@ -1829,7 +1829,7 @@ int main(int argc, char** argv) {
     double theta_start = 0.0, theta_end = 10.0;
     // Use a strict tolerance for high-accuracy reference trajectories.
     double tolerance = 1e-14;
-    int max_PN_order = 4;
+    int max_PN_order = 5;
     
     std::cout << "=== Adaptive RK4 Integration Comparison ===" << std::endl;
     std::cout << "PN order: " << max_PN_order << " (4.5PN)" << std::endl;
