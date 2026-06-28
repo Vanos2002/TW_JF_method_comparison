@@ -1,4 +1,4 @@
-# This code is called SATURDAY.py in VS Code
+# This file is called SATURDAY.py in VS Code
 # THIS CODE WAS CREATED ON THURSDAY JUNE 4, 2026
 # THIS FILE COMPARES THE FEREISL-TUCKERWILL 4.5PN EXPRESSIONS TO THE RK4 ADAPTIVE CODE
 #
@@ -278,6 +278,7 @@ class BinaryState:
 SecularRHS = List[float]   # [dp, dalpha, dbeta]
 
 PHI_AVERAGE_SAMPLES = 64
+_PROBE_H = 1e-7
 
 
 # ---------------------------------------------------------------------------
@@ -731,19 +732,95 @@ def compute_secular_rhs_TW(state: BinaryState, params: PhysicalParams,
     return total
 
 
-def _scale_for_phi(rhs: SecularRHS, eps: float) -> SecularRHS:
-    factor = 1.0 / eps if eps != 0.0 else 0.0
-    return [rhs[0] * factor, rhs[1] * factor, rhs[2] * factor]
+def _compute_dtheta_dphi(state: BinaryState, params: PhysicalParams,
+                         phi: float) -> float:
+    """Instantaneous dtheta/dphi from PN angular momentum balance."""
+    K = _get_K()
+    p, alpha, beta = state.p, state.alpha, state.beta
+    GM = params.G * params.M
+
+    e = math.sqrt(alpha * alpha + beta * beta)
+    r = norm_r(p, e, alpha, beta, phi)
+    rd = r_dot(p, e, alpha, beta, phi)
+    v2 = norm_v2(p, e, alpha, beta, phi)
+    rd2 = rd * rd
+    gmr = GM / r
+    c_val = 1.0 / params.eps if params.eps != 0.0 else float("inf")
+
+    Btot = 0.0
+    qlt_ord = _map_secular_order_to_qlt_order(5)
+    for N in range(1, qlt_ord + 1):
+        Btot += sum_table(K.b, N, rd2, v2, gmr, c_val)
+
+    dphi_dt = math.sqrt(GM * p) * (1.0 + Btot) / (r * r)
+    dphi_dt_newt = math.sqrt(GM * p) / (r * r)
+    if dphi_dt == 0.0:
+        return 0.0
+
+    return params.eps * dphi_dt_newt / dphi_dt
 
 
-def compute_secular_rhs_phi(state: BinaryState, params: PhysicalParams,
-                             max_pn_order: int) -> SecularRHS:
-    return _scale_for_phi(compute_secular_rhs(state, params, max_pn_order), params.eps)
+def _oscillatory_phi_derivatives_at_fixed_state(
+        state: BinaryState, params: PhysicalParams, phi: float,
+    fd_step: float = _PROBE_H) -> Tuple[SecularRHS, SecularRHS]:
+    """Central finite-difference dY2/dphi and dY4/dphi at fixed state."""
+    pp_plus = PhysicalParams(params.G, params.M, params.eta, phi + fd_step, params.eps)
+    pp_minus = PhysicalParams(params.G, params.M, params.eta, phi - fd_step, params.eps)
+
+    Y2_plus = oscillatory_1PN(state, pp_plus)
+    Y2_minus = oscillatory_1PN(state, pp_minus)
+    Y4_plus = oscillatory_2PN(state, pp_plus)
+    Y4_minus = oscillatory_2PN(state, pp_minus)
+
+    inv_2h = 1.0 / (2.0 * fd_step)
+    dY2 = [(Y2_plus[i] - Y2_minus[i]) * inv_2h for i in range(3)]
+    dY4 = [(Y4_plus[i] - Y4_minus[i]) * inv_2h for i in range(3)]
+    return dY2, dY4
 
 
-def compute_secular_rhs_TW_phi(state: BinaryState, params: PhysicalParams,
-                                max_pn_order: int) -> SecularRHS:
-    return _scale_for_phi(compute_secular_rhs_TW(state, params, max_pn_order), params.eps)
+def _compute_transformed_physical_rhs(
+        state: BinaryState, params: PhysicalParams,
+        max_pn_order: int, phi: float,
+        secular_rhs_fn: Callable[[BinaryState, PhysicalParams, int], SecularRHS]) -> SecularRHS:
+    """
+    Full physical RHS in phi:
+    d/dphi[tilde + eps^2 Y2 + eps^4 Y4], keeping explicit phi-oscillatory terms.
+    """
+    eps2 = params.eps * params.eps
+    eps4 = eps2 * eps2
+
+    rhs_theta = secular_rhs_fn(state, params, max_pn_order)
+    dtheta_dphi = _compute_dtheta_dphi(state, params, phi)
+    rhs_phi = [x * dtheta_dphi for x in rhs_theta]
+
+    dY2_dphi, dY4_dphi = _oscillatory_phi_derivatives_at_fixed_state(state, params, phi)
+
+    return [
+        rhs_phi[i] + eps2 * dY2_dphi[i] + eps4 * dY4_dphi[i]
+        for i in range(3)
+    ]
+
+
+def compute_fereisl_physical_rhs(state: BinaryState, params: PhysicalParams,
+                                 max_pn_order: int, phi: float) -> SecularRHS:
+    return _compute_transformed_physical_rhs(
+        state,
+        params,
+        max_pn_order,
+        phi,
+        compute_secular_rhs,
+    )
+
+
+def compute_tw_physical_rhs(state: BinaryState, params: PhysicalParams,
+                            max_pn_order: int, phi: float) -> SecularRHS:
+    return _compute_transformed_physical_rhs(
+        state,
+        params,
+        max_pn_order,
+        phi,
+        compute_secular_rhs_TW,
+    )
 
 
 def transform_tilde_state_to_actual(tilde: BinaryState,
@@ -971,17 +1048,11 @@ def compute_rhs_fractional_differences(
     
     for eps in epsilon_values:
         sp = PhysicalParams(params.G, params.M, params.eta, params.phi, eps)
-        sp0 = PhysicalParams(params.G, params.M, params.eta, 0.0, eps)
-        sp1 = PhysicalParams(params.G, params.M, params.eta, probe_h, eps)
-
-        # Recover approximate tilde states that map to the same physical initial state.
-        tilde_fereisl = _approximate_tilde_from_actual(initial_state, sp0, use_TW=False)
-        tilde_tw = _approximate_tilde_from_actual(initial_state, sp0, use_TW=True)
         
         # Evaluate RHS at initial state for all three methods
         rhs_qlt = compute_qlt_rhs_phi(initial_state, sp, max_pn_order, 0.0)
-        rhs_fereisl = compute_secular_rhs_phi(tilde_fereisl, sp, max_pn_order)
-        rhs_tw = compute_secular_rhs_TW_phi(tilde_tw, sp, max_pn_order)
+        rhs_fereisl = compute_fereisl_physical_rhs(initial_state, sp, max_pn_order, 0.0)
+        rhs_tw = compute_tw_physical_rhs(initial_state, sp, max_pn_order, 0.0)
 
         # QLT is already physical.
         qlt_next = BinaryState(
@@ -991,24 +1062,19 @@ def compute_rhs_fractional_differences(
         )
         e_dot_qlt = (_eccentricity(qlt_next) - _eccentricity(initial_state)) / probe_h
 
-        # Fereisl/TW are in tilde coordinates; transform probe endpoints to physical first.
-        fereisl_next_tilde = BinaryState(
-            p=tilde_fereisl.p + probe_h * rhs_fereisl[0],
-            alpha=tilde_fereisl.alpha + probe_h * rhs_fereisl[1],
-            beta=tilde_fereisl.beta + probe_h * rhs_fereisl[2],
+        fereisl_next = BinaryState(
+            p=initial_state.p + probe_h * rhs_fereisl[0],
+            alpha=initial_state.alpha + probe_h * rhs_fereisl[1],
+            beta=initial_state.beta + probe_h * rhs_fereisl[2],
         )
-        fereisl_actual_0 = transform_tilde_state_to_actual(tilde_fereisl, sp0, use_TW=False)
-        fereisl_actual_1 = transform_tilde_state_to_actual(fereisl_next_tilde, sp1, use_TW=False)
-        e_dot_fereisl = (_eccentricity(fereisl_actual_1) - _eccentricity(fereisl_actual_0)) / probe_h
+        e_dot_fereisl = (_eccentricity(fereisl_next) - _eccentricity(initial_state)) / probe_h
 
-        tw_next_tilde = BinaryState(
-            p=tilde_tw.p + probe_h * rhs_tw[0],
-            alpha=tilde_tw.alpha + probe_h * rhs_tw[1],
-            beta=tilde_tw.beta + probe_h * rhs_tw[2],
+        tw_next = BinaryState(
+            p=initial_state.p + probe_h * rhs_tw[0],
+            alpha=initial_state.alpha + probe_h * rhs_tw[1],
+            beta=initial_state.beta + probe_h * rhs_tw[2],
         )
-        tw_actual_0 = transform_tilde_state_to_actual(tilde_tw, sp0, use_TW=True)
-        tw_actual_1 = transform_tilde_state_to_actual(tw_next_tilde, sp1, use_TW=True)
-        e_dot_tw = (_eccentricity(tw_actual_1) - _eccentricity(tw_actual_0)) / probe_h
+        e_dot_tw = (_eccentricity(tw_next) - _eccentricity(initial_state)) / probe_h
         
         # Compute fractional difference: |QLT - method| / |QLT|
         denom = abs(e_dot_qlt) + 1e-30  # avoid division by zero
@@ -1164,55 +1230,29 @@ def compute_log_phi_vs_log_epsilon_data(
     rows: List[Tuple[float, float, float, float]] = []
     for eps in epsilon_values:
         sp = PhysicalParams(params.G, params.M, params.eta, params.phi, eps)
-        sp0 = PhysicalParams(params.G, params.M, params.eta, 0.0, eps)
-
-        tilde_fereisl_init = _approximate_tilde_from_actual(
-            initial_state,
-            sp0,
-            use_TW=False,
-        )
-        tilde_tw_init = _approximate_tilde_from_actual(
-            initial_state,
-            sp0,
-            use_TW=True,
-        )
 
         def rhs_qlt(s, p, phi):
             return compute_qlt_rhs_phi(s, p, max_pn_order, phi)
 
-        def rhs_fereisl(s, p, _phi):
-            return compute_secular_rhs_phi(s, p, max_pn_order)
+        def rhs_fereisl(s, p, phi):
+            return compute_fereisl_physical_rhs(s, p, max_pn_order, phi)
 
-        def rhs_tw(s, p, _phi):
-            return compute_secular_rhs_TW_phi(s, p, max_pn_order)
+        def rhs_tw(s, p, phi):
+            return compute_tw_physical_rhs(s, p, max_pn_order, phi)
 
         result_qlt = integrator.integrate(initial_state, sp, rhs_qlt, 0.0, phi_end)
-        result_fereisl = integrator.integrate(tilde_fereisl_init, sp, rhs_fereisl, 0.0, phi_end)
-        result_tw = integrator.integrate(tilde_tw_init, sp, rhs_tw, 0.0, phi_end)
+        result_fereisl = integrator.integrate(initial_state, sp, rhs_fereisl, 0.0, phi_end)
+        result_tw = integrator.integrate(initial_state, sp, rhs_tw, 0.0, phi_end)
 
         # Extract end-state orbital elements in a common (physical) coordinate system.
         s_qlt = result_qlt.states[-1] if result_qlt.states else BinaryState()
-        s_fereisl_tilde = result_fereisl.states[-1] if result_fereisl.states else BinaryState()
-        s_tw_tilde = result_tw.states[-1] if result_tw.states else BinaryState()
+        s_fereisl = result_fereisl.states[-1] if result_fereisl.states else BinaryState()
+        s_tw = result_tw.states[-1] if result_tw.states else BinaryState()
 
         # Get final phi values for reference
         phi_qlt = result_qlt.theta[-1] if result_qlt.theta else phi_end
         phi_fereisl = result_fereisl.theta[-1] if result_fereisl.theta else phi_end
         phi_tw = result_tw.theta[-1] if result_tw.theta else phi_end
-
-        # Compare all methods at a fixed orbital phase in physical coordinates.
-        compare_params = PhysicalParams(params.G, params.M, params.eta, 0.0, eps)
-
-        s_fereisl = transform_tilde_state_to_actual(
-            s_fereisl_tilde,
-            compare_params,
-            use_TW=False,
-        )
-        s_tw = transform_tilde_state_to_actual(
-            s_tw_tilde,
-            compare_params,
-            use_TW=True,
-        )
 
         # Compute end-state differences
         dp_qf = abs(s_qlt.p - s_fereisl.p)
