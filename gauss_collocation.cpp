@@ -269,6 +269,7 @@ std::array<double, 3> oscillatory_1PN(const BinaryState& state, const PhysicalPa
 std::array<double, 3> oscillatory_2PN(const BinaryState& state, const PhysicalParams& params);
 
 static constexpr int PHI_AVERAGE_SAMPLES = 512;
+static constexpr double PROBE_H = 1e-7;
 using QLTrhsFunc = std::function<QLTrhs(const BinaryState&)>;
 
 static QLTrhs addQLT(const QLTrhs& a, const QLTrhs& b) {
@@ -875,17 +876,114 @@ SecularRHS compute_secular_RHS_TW(const BinaryState& state, const PhysicalParams
     return total_rhs;
 }
 
-static SecularRHS scaleSecularRHSForPhi(const SecularRHS& rhs, double eps) {
-    double factor = (eps != 0.0) ? 1.0 / eps : 0.0;
-    return {rhs[0] * factor, rhs[1] * factor, rhs[2] * factor};
+static double compute_dtheta_dphi(const BinaryState& state,
+                                  const PhysicalParams& params,
+                                  double phi) {
+    static const PNCoeffs K = buildCoefficients(true);
+
+    double p = state.p;
+    double alpha = state.alpha;
+    double beta = state.beta;
+    double e = std::sqrt(alpha * alpha + beta * beta);
+    double GM = params.G * params.M;
+    double c_val = (params.eps != 0.0) ? 1.0 / params.eps : std::numeric_limits<double>::infinity();
+
+    double r = normR(p, e, alpha, beta, phi);
+    double rd = rDot(p, e, alpha, beta, phi);
+    double v2 = normV2(p, e, alpha, beta, phi);
+    double rd2 = rd * rd;
+    double gmr = GM / r;
+
+    double Btot = 0.0;
+    const int qlt_ord = 3; // mapSecularOrderToQLTOrder(5)
+    for (int N = 1; N <= qlt_ord; ++N) {
+        Btot += sumTable(K.b, N, rd2, v2, gmr, c_val);
+    }
+
+    double dphi_dt_pn = std::sqrt(GM * p) * (1.0 + Btot) / (r * r);
+    double dphi_dt_newt = std::sqrt(GM * p) / (r * r);
+    if (dphi_dt_pn == 0.0) {
+        return 0.0;
+    }
+    return params.eps * dphi_dt_newt / dphi_dt_pn;
 }
 
-SecularRHS compute_secular_RHS_phi(const BinaryState& state, const PhysicalParams& params, int max_PN_order) {
-    return scaleSecularRHSForPhi(compute_secular_RHS(state, params, max_PN_order), params.eps);
+static std::pair<SecularRHS, SecularRHS> oscillatoryPhiDerivativesAtFixedState(
+    const BinaryState& state,
+    const PhysicalParams& params,
+    double phi,
+    double h = PROBE_H
+) {
+    PhysicalParams plus = params;
+    plus.phi = phi + h;
+    PhysicalParams minus = params;
+    minus.phi = phi - h;
+
+    auto y2_plus = oscillatory_1PN(state, plus);
+    auto y2_minus = oscillatory_1PN(state, minus);
+    auto y4_plus = oscillatory_2PN(state, plus);
+    auto y4_minus = oscillatory_2PN(state, minus);
+
+    SecularRHS dY2{};
+    SecularRHS dY4{};
+    double inv_2h = 1.0 / (2.0 * h);
+    for (int i = 0; i < 3; ++i) {
+        dY2[i] = (y2_plus[i] - y2_minus[i]) * inv_2h;
+        dY4[i] = (y4_plus[i] - y4_minus[i]) * inv_2h;
+    }
+    return {dY2, dY4};
 }
 
-SecularRHS compute_secular_RHS_TW_phi(const BinaryState& state, const PhysicalParams& params, int max_PN_order) {
-    return scaleSecularRHSForPhi(compute_secular_RHS_TW(state, params, max_PN_order), params.eps);
+SecularRHS compute_fereisl_physical_RHS(const BinaryState& state,
+                                        const PhysicalParams& params,
+                                        int max_PN_order,
+                                        double phi) {
+    double eps2 = params.eps * params.eps;
+    double eps4 = eps2 * eps2;
+
+    auto rhs_theta = compute_secular_RHS(state, params, max_PN_order);
+    double dtheta_dphi = compute_dtheta_dphi(state, params, phi);
+    SecularRHS rhs_phi{
+        rhs_theta[0] * dtheta_dphi,
+        rhs_theta[1] * dtheta_dphi,
+        rhs_theta[2] * dtheta_dphi
+    };
+
+    auto dYs = oscillatoryPhiDerivativesAtFixedState(state, params, phi);
+    const auto& dY2 = dYs.first;
+    const auto& dY4 = dYs.second;
+
+    return {
+        rhs_phi[0] + eps2 * dY2[0] + eps4 * dY4[0],
+        rhs_phi[1] + eps2 * dY2[1] + eps4 * dY4[1],
+        rhs_phi[2] + eps2 * dY2[2] + eps4 * dY4[2]
+    };
+}
+
+SecularRHS compute_tw_physical_RHS(const BinaryState& state,
+                                   const PhysicalParams& params,
+                                   int max_PN_order,
+                                   double phi) {
+    double eps2 = params.eps * params.eps;
+    double eps4 = eps2 * eps2;
+
+    auto rhs_theta = compute_secular_RHS_TW(state, params, max_PN_order);
+    double dtheta_dphi = compute_dtheta_dphi(state, params, phi);
+    SecularRHS rhs_phi{
+        rhs_theta[0] * dtheta_dphi,
+        rhs_theta[1] * dtheta_dphi,
+        rhs_theta[2] * dtheta_dphi
+    };
+
+    auto dYs = oscillatoryPhiDerivativesAtFixedState(state, params, phi);
+    const auto& dY2 = dYs.first;
+    const auto& dY4 = dYs.second;
+
+    return {
+        rhs_phi[0] + eps2 * dY2[0] + eps4 * dY4[0],
+        rhs_phi[1] + eps2 * dY2[1] + eps4 * dY4[1],
+        rhs_phi[2] + eps2 * dY2[2] + eps4 * dY4[2]
+    };
 }
 
 BinaryState transformTildeStateToActual(const BinaryState& tilde_state, const PhysicalParams& params, bool useTW = false) {
@@ -1155,13 +1253,13 @@ void compareEvolutionMethodsPhi(
 ) {
     AdaptiveGaussCollocationIntegrator integrator(tolerance);
 
-    auto rhs_fereisl = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double /*phi*/) {
-        return compute_secular_RHS_phi(s, p, max_PN_order);
+    auto rhs_fereisl = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double phi) {
+        return compute_fereisl_physical_RHS(s, p, max_PN_order, phi);
     };
     auto result_fereisl = integrator.integrate(initial_state, params, rhs_fereisl, phi_start, phi_end);
 
-    auto rhs_tw = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double /*phi*/) {
-        return compute_secular_RHS_TW_phi(s, p, max_PN_order);
+    auto rhs_tw = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double phi) {
+        return compute_tw_physical_RHS(s, p, max_PN_order, phi);
     };
     auto result_tw = integrator.integrate(initial_state, params, rhs_tw, phi_start, phi_end);
 
@@ -1176,11 +1274,8 @@ void compareEvolutionMethodsPhi(
         auto& state_f = result_fereisl.states[i];
         auto& state_tw_i = result_tw.states[i];
 
-        PhysicalParams pphi = params;
-        pphi.phi = phi;
-
-        auto actual_f = transformTildeStateToActual(state_f, pphi, false);
-        auto actual_tw = transformTildeStateToActual(state_tw_i, pphi, true);
+        auto actual_f = state_f;
+        auto actual_tw = state_tw_i;
 
         double dp_diff = std::abs(actual_f.p - actual_tw.p);
         double da_diff = std::abs(actual_f.alpha - actual_tw.alpha);
@@ -1270,20 +1365,9 @@ std::vector<RHSFractionalDiffRow> computeRHSFractionalDifferences(
         PhysicalParams scan_params = params;
         scan_params.eps = eps;
 
-        PhysicalParams scan_params_0 = params;
-        scan_params_0.eps = eps;
-        scan_params_0.phi = 0.0;
-
-        PhysicalParams scan_params_1 = params;
-        scan_params_1.eps = eps;
-        scan_params_1.phi = probe_h;
-
-        BinaryState tilde_f_init = approximateTildeFromActual(initial_state, scan_params_0, false);
-        BinaryState tilde_tw_init = approximateTildeFromActual(initial_state, scan_params_0, true);
-
         auto rhs_qlt = compute_QLT_RHS_phi(initial_state, scan_params, max_PN_order, 0.0);
-        auto rhs_f = compute_secular_RHS_phi(tilde_f_init, scan_params, max_PN_order);
-        auto rhs_tw = compute_secular_RHS_TW_phi(tilde_tw_init, scan_params, max_PN_order);
+        auto rhs_f = compute_fereisl_physical_RHS(initial_state, scan_params, max_PN_order, 0.0);
+        auto rhs_tw = compute_tw_physical_RHS(initial_state, scan_params, max_PN_order, 0.0);
 
         BinaryState qlt_next{
             initial_state.p + probe_h * rhs_qlt[0],
@@ -1292,23 +1376,19 @@ std::vector<RHSFractionalDiffRow> computeRHSFractionalDifferences(
         };
         double e_dot_qlt = (eccentricity(qlt_next) - eccentricity(initial_state)) / probe_h;
 
-        BinaryState f_next_tilde{
-            tilde_f_init.p + probe_h * rhs_f[0],
-            tilde_f_init.alpha + probe_h * rhs_f[1],
-            tilde_f_init.beta + probe_h * rhs_f[2]
+        BinaryState f_next{
+            initial_state.p + probe_h * rhs_f[0],
+            initial_state.alpha + probe_h * rhs_f[1],
+            initial_state.beta + probe_h * rhs_f[2]
         };
-        BinaryState f_actual_0 = transformTildeStateToActual(tilde_f_init, scan_params_0, false);
-        BinaryState f_actual_1 = transformTildeStateToActual(f_next_tilde, scan_params_1, false);
-        double e_dot_f = (eccentricity(f_actual_1) - eccentricity(f_actual_0)) / probe_h;
+        double e_dot_f = (eccentricity(f_next) - eccentricity(initial_state)) / probe_h;
 
-        BinaryState tw_next_tilde{
-            tilde_tw_init.p + probe_h * rhs_tw[0],
-            tilde_tw_init.alpha + probe_h * rhs_tw[1],
-            tilde_tw_init.beta + probe_h * rhs_tw[2]
+        BinaryState tw_next{
+            initial_state.p + probe_h * rhs_tw[0],
+            initial_state.alpha + probe_h * rhs_tw[1],
+            initial_state.beta + probe_h * rhs_tw[2]
         };
-        BinaryState tw_actual_0 = transformTildeStateToActual(tilde_tw_init, scan_params_0, true);
-        BinaryState tw_actual_1 = transformTildeStateToActual(tw_next_tilde, scan_params_1, true);
-        double e_dot_tw = (eccentricity(tw_actual_1) - eccentricity(tw_actual_0)) / probe_h;
+        double e_dot_tw = (eccentricity(tw_next) - eccentricity(initial_state)) / probe_h;
 
         double denom = std::abs(e_dot_qlt) + 1e-30;
         double frac_f = std::abs(e_dot_qlt - e_dot_f) / denom;
@@ -1393,34 +1473,24 @@ std::vector<EpsPhiRow> computeLogPhiVsLogEpsilonData(
     for (double eps : epsilon_values) {
         PhysicalParams scan_params = params;
         scan_params.eps = eps;
-        PhysicalParams scan_params_phi0 = params;
-        scan_params_phi0.eps = eps;
-        scan_params_phi0.phi = 0.0;
-
-        BinaryState tilde_fereisl_init = approximateTildeFromActual(initial_state, scan_params_phi0, false);
-        BinaryState tilde_tw_init = approximateTildeFromActual(initial_state, scan_params_phi0, true);
 
         auto rhs_qlt = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double phi) {
             return compute_QLT_RHS_phi(s, p, max_PN_order, phi);
         };
-        auto rhs_fereisl = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double /*phi*/) {
-            return compute_secular_RHS_phi(s, p, max_PN_order);
+        auto rhs_fereisl = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double phi) {
+            return compute_fereisl_physical_RHS(s, p, max_PN_order, phi);
         };
-        auto rhs_tw = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double /*phi*/) {
-            return compute_secular_RHS_TW_phi(s, p, max_PN_order);
+        auto rhs_tw = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double phi) {
+            return compute_tw_physical_RHS(s, p, max_PN_order, phi);
         };
 
         auto result_qlt = integrator.integrate(initial_state, scan_params, rhs_qlt, 0.0, phi_end);
-    auto result_fereisl = integrator.integrate(tilde_fereisl_init, scan_params, rhs_fereisl, 0.0, phi_end);
-    auto result_tw = integrator.integrate(tilde_tw_init, scan_params, rhs_tw, 0.0, phi_end);
+    auto result_fereisl = integrator.integrate(initial_state, scan_params, rhs_fereisl, 0.0, phi_end);
+    auto result_tw = integrator.integrate(initial_state, scan_params, rhs_tw, 0.0, phi_end);
 
         BinaryState s_qlt = result_qlt.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_qlt.states.back();
-    BinaryState s_fereisl_tilde = result_fereisl.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_fereisl.states.back();
-    BinaryState s_tw_tilde = result_tw.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_tw.states.back();
-
-    // Compare end states at a fixed orbital phase in physical coordinates.
-    BinaryState s_fereisl = transformTildeStateToActual(s_fereisl_tilde, scan_params_phi0, false);
-    BinaryState s_tw = transformTildeStateToActual(s_tw_tilde, scan_params_phi0, true);
+    BinaryState s_fereisl = result_fereisl.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_fereisl.states.back();
+    BinaryState s_tw = result_tw.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_tw.states.back();
 
         double dp_qf = std::abs(s_qlt.p - s_fereisl.p);
         double da_qf = std::abs(s_qlt.alpha - s_fereisl.alpha);
