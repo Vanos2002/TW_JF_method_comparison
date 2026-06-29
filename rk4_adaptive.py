@@ -1,6 +1,6 @@
-# This file is called SATURDAY.py in VS Code
+# This file is called "SATURDAY.py" in VS Code
 # THIS CODE WAS CREATED ON THURSDAY JUNE 4, 2026
-# THIS FILE COMPARES THE FEREISL-TUCKERWILL 4.5PN EXPRESSIONS TO THE RK4 ADAPTIVE CODE
+# THIS FILE COMPARES THE Feireisl-TUCKERWILL 4.5PN EXPRESSIONS TO THE RK4 ADAPTIVE CODE
 #
 # From the article "Residual eccentricity of inspiralling orbits at the
 # gravitational-wave detection threshold: Accurate estimates using
@@ -8,7 +8,7 @@
 # (arXiv:2108.12210v2 [gr-qc] 15 Nov 2021)
 #
 # We compare the transformed 4.5PN contributions of dp/dtheta and de/dtheta
-# from the Fereisl-Tucker-Will (FTW) paper against the numerical
+# from the Feireisl-Tucker-Will (FTW) paper against the numerical
 # orbit-averaged QLT results.
 
 from __future__ import annotations
@@ -142,7 +142,7 @@ def build_coefficients(include_4p5PN: bool = True) -> PNCoeffs:
     d[1,0,1] = -(1.0 / 42.0) * (205.0 + 777.0 * eta)
     d[0,1,1] = -(3.0 / 4.0) * (113.0 + 2.0 * eta)
 
-    # ── 4.5 PN  (radiation reaction — Fereisl term) ────────────────────────
+    # ── 4.5 PN  (radiation reaction — Feireisl term) ────────────────────────
     if include_4p5PN:
         cc[3,0,0] =  (1.0 / 756.0) * (289079.0 + 284127.0 * eta + 22632.0 * e2)
         cc[0,3,0] =  0.0
@@ -278,7 +278,6 @@ class BinaryState:
 SecularRHS = List[float]   # [dp, dalpha, dbeta]
 
 PHI_AVERAGE_SAMPLES = 64
-_PROBE_H = 1e-7
 
 
 # ---------------------------------------------------------------------------
@@ -336,7 +335,7 @@ def average_qlt_rhs(f: Callable[[float], QLTrhs],
 
 
 # ---------------------------------------------------------------------------
-# Secular PN terms (Fereisl)
+# Secular PN terms (Feireisl)
 # ---------------------------------------------------------------------------
 
 def secular_2_5PN_explicit(K: PNCoeffs, state: BinaryState,
@@ -590,7 +589,7 @@ def secular_3_5PN(state: BinaryState, params: PhysicalParams) -> SecularRHS:
 
 
 def secular_4_5PN(state: BinaryState, params: PhysicalParams) -> SecularRHS:
-    """Fereisl 4.5PN secular terms."""
+    """Feireisl 4.5PN secular terms."""
     p, alpha, beta = state.p, state.alpha, state.beta
     GM   = params.G * params.M
     GM4  = GM ** 4
@@ -636,7 +635,7 @@ def secular_4_5PN(state: BinaryState, params: PhysicalParams) -> SecularRHS:
 
 
 # ---------------------------------------------------------------------------
-# Composite secular RHS  (Fereisl)
+# Composite secular RHS  (Feireisl)
 # ---------------------------------------------------------------------------
 
 _K_global: PNCoeffs | None = None
@@ -760,50 +759,28 @@ def _compute_dtheta_dphi(state: BinaryState, params: PhysicalParams,
     return params.eps * dphi_dt_newt / dphi_dt
 
 
-def _oscillatory_phi_derivatives_at_fixed_state(
-        state: BinaryState, params: PhysicalParams, phi: float,
-    fd_step: float = _PROBE_H) -> Tuple[SecularRHS, SecularRHS]:
-    """Central finite-difference dY2/dphi and dY4/dphi at fixed state."""
-    pp_plus = PhysicalParams(params.G, params.M, params.eta, phi + fd_step, params.eps)
-    pp_minus = PhysicalParams(params.G, params.M, params.eta, phi - fd_step, params.eps)
-
-    Y2_plus = oscillatory_1PN(state, pp_plus)
-    Y2_minus = oscillatory_1PN(state, pp_minus)
-    Y4_plus = oscillatory_2PN(state, pp_plus)
-    Y4_minus = oscillatory_2PN(state, pp_minus)
-
-    inv_2h = 1.0 / (2.0 * fd_step)
-    dY2 = [(Y2_plus[i] - Y2_minus[i]) * inv_2h for i in range(3)]
-    dY4 = [(Y4_plus[i] - Y4_minus[i]) * inv_2h for i in range(3)]
-    return dY2, dY4
-
-
-def _compute_transformed_physical_rhs(
+def _compute_tilde_rhs_in_phi(
         state: BinaryState, params: PhysicalParams,
         max_pn_order: int, phi: float,
         secular_rhs_fn: Callable[[BinaryState, PhysicalParams, int], SecularRHS]) -> SecularRHS:
     """
-    Full physical RHS in phi:
-    d/dphi[tilde + eps^2 Y2 + eps^4 Y4], keeping explicit phi-oscillatory terms.
-    """
-    eps2 = params.eps * params.eps
-    eps4 = eps2 * eps2
+    Tilde-system RHS in phi.
 
+    Integrates only the secular variables in phi:
+        d(tilde)/dphi = d(tilde)/dtheta * dtheta/dphi
+
+    Physical variables are reconstructed afterward with
+    x = tilde + eps^2 Y2 + eps^4 Y4.
+    """
     rhs_theta = secular_rhs_fn(state, params, max_pn_order)
     dtheta_dphi = _compute_dtheta_dphi(state, params, phi)
-    rhs_phi = [x * dtheta_dphi for x in rhs_theta]
-
-    dY2_dphi, dY4_dphi = _oscillatory_phi_derivatives_at_fixed_state(state, params, phi)
-
-    return [
-        rhs_phi[i] + eps2 * dY2_dphi[i] + eps4 * dY4_dphi[i]
-        for i in range(3)
-    ]
+    return [x * dtheta_dphi for x in rhs_theta]
 
 
-def compute_fereisl_physical_rhs(state: BinaryState, params: PhysicalParams,
+def compute_feireisl_physical_rhs(state: BinaryState, params: PhysicalParams,
                                  max_pn_order: int, phi: float) -> SecularRHS:
-    return _compute_transformed_physical_rhs(
+    """RHS used for integrating the Feireisl tilde system in phi."""
+    return _compute_tilde_rhs_in_phi(
         state,
         params,
         max_pn_order,
@@ -814,12 +791,39 @@ def compute_fereisl_physical_rhs(state: BinaryState, params: PhysicalParams,
 
 def compute_tw_physical_rhs(state: BinaryState, params: PhysicalParams,
                             max_pn_order: int, phi: float) -> SecularRHS:
-    return _compute_transformed_physical_rhs(
+    """RHS used for integrating the TW tilde system in phi."""
+    return _compute_tilde_rhs_in_phi(
         state,
         params,
         max_pn_order,
         phi,
         compute_secular_rhs_TW,
+    )
+
+
+def reconstruct_physical_state_from_tilde(tilde: BinaryState,
+                                          params: PhysicalParams,
+                                          phi: float,
+                                          use_TW: bool = False) -> BinaryState:
+    pp = PhysicalParams(params.G, params.M, params.eta, phi, params.eps)
+    return transform_tilde_state_to_actual(tilde, pp, use_TW)
+
+
+def reconstruct_physical_trajectory_from_tilde(
+        tilde_result: IntegrationResult,
+        params: PhysicalParams,
+        use_TW: bool = False) -> IntegrationResult:
+    physical_states: List[BinaryState] = []
+    for phi, tilde_state in zip(tilde_result.theta, tilde_result.states):
+        physical_states.append(
+            reconstruct_physical_state_from_tilde(tilde_state, params, phi, use_TW)
+        )
+
+    return IntegrationResult(
+        theta=list(tilde_result.theta),
+        states=physical_states,
+        error_estimates=list(tilde_result.error_estimates),
+        num_steps=tilde_result.num_steps,
     )
 
 
@@ -1026,14 +1030,14 @@ def compute_rhs_fractional_differences(
     For each epsilon, evaluate a one-step instantaneous rate probe and compute
     the fractional difference in de/dtheta in a common (physical) coordinate system:
     
-        Δ(de/dtheta) = |de/dtheta_QLT − de/dtheta_Fereisl| / |de/dtheta_QLT|
+        Δ(de/dtheta) = |de/dtheta_QLT − de/dtheta_Feireisl| / |de/dtheta_QLT|
         
-    Returns list of tuples: (eps, frac_diff_fereisl, frac_diff_tw)
+    Returns list of tuples: (eps, frac_diff_feireisl, frac_diff_tw)
     
     INTERPRETATION (log-log plot):
-    - For Fereisl vs QLT (4.5PN comparison): Expected slope +2 since the next uncaptured 
+    - For Feireisl vs QLT (4.5PN comparison): Expected slope +2 since the next uncaptured 
       order is 5.5PN, which is eps² above 4.5PN. The error should scale as eps².
-    - For Fereisl vs TW (both 4.5PN, differ only in polynomial constants): Expected 
+    - For Feireisl vs TW (both 4.5PN, differ only in polynomial constants): Expected 
       slope ≈ 0 since they differ by a constant fraction independent of eps; the two 
       term_alpha polynomials differ by a tiny numerical constant, not a PN-order difference.
     """
@@ -1051,8 +1055,13 @@ def compute_rhs_fractional_differences(
         
         # Evaluate RHS at initial state for all three methods
         rhs_qlt = compute_qlt_rhs_phi(initial_state, sp, max_pn_order, 0.0)
-        rhs_fereisl = compute_fereisl_physical_rhs(initial_state, sp, max_pn_order, 0.0)
-        rhs_tw = compute_tw_physical_rhs(initial_state, sp, max_pn_order, 0.0)
+
+        # Integrate only tilde RHS; reconstruct physical states before taking de/dphi.
+        tilde0_feireisl = _approximate_tilde_from_actual(initial_state, sp, use_TW=False)
+        rhs_tilde_feireisl = compute_feireisl_physical_rhs(tilde0_feireisl, sp, max_pn_order, 0.0)
+
+        tilde0_tw = _approximate_tilde_from_actual(initial_state, sp, use_TW=True)
+        rhs_tilde_tw = compute_tw_physical_rhs(tilde0_tw, sp, max_pn_order, 0.0)
 
         # QLT is already physical.
         qlt_next = BinaryState(
@@ -1062,29 +1071,33 @@ def compute_rhs_fractional_differences(
         )
         e_dot_qlt = (_eccentricity(qlt_next) - _eccentricity(initial_state)) / probe_h
 
-        fereisl_next = BinaryState(
-            p=initial_state.p + probe_h * rhs_fereisl[0],
-            alpha=initial_state.alpha + probe_h * rhs_fereisl[1],
-            beta=initial_state.beta + probe_h * rhs_fereisl[2],
+        tilde1_feireisl = BinaryState(
+            p=tilde0_feireisl.p + probe_h * rhs_tilde_feireisl[0],
+            alpha=tilde0_feireisl.alpha + probe_h * rhs_tilde_feireisl[1],
+            beta=tilde0_feireisl.beta + probe_h * rhs_tilde_feireisl[2],
         )
-        e_dot_fereisl = (_eccentricity(fereisl_next) - _eccentricity(initial_state)) / probe_h
+        physical0_feireisl = reconstruct_physical_state_from_tilde(tilde0_feireisl, sp, 0.0, use_TW=False)
+        physical1_feireisl = reconstruct_physical_state_from_tilde(tilde1_feireisl, sp, probe_h, use_TW=False)
+        e_dot_feireisl = (_eccentricity(physical1_feireisl) - _eccentricity(physical0_feireisl)) / probe_h
 
-        tw_next = BinaryState(
-            p=initial_state.p + probe_h * rhs_tw[0],
-            alpha=initial_state.alpha + probe_h * rhs_tw[1],
-            beta=initial_state.beta + probe_h * rhs_tw[2],
+        tilde1_tw = BinaryState(
+            p=tilde0_tw.p + probe_h * rhs_tilde_tw[0],
+            alpha=tilde0_tw.alpha + probe_h * rhs_tilde_tw[1],
+            beta=tilde0_tw.beta + probe_h * rhs_tilde_tw[2],
         )
-        e_dot_tw = (_eccentricity(tw_next) - _eccentricity(initial_state)) / probe_h
+        physical0_tw = reconstruct_physical_state_from_tilde(tilde0_tw, sp, 0.0, use_TW=True)
+        physical1_tw = reconstruct_physical_state_from_tilde(tilde1_tw, sp, probe_h, use_TW=True)
+        e_dot_tw = (_eccentricity(physical1_tw) - _eccentricity(physical0_tw)) / probe_h
         
         # Compute fractional difference: |QLT - method| / |QLT|
         denom = abs(e_dot_qlt) + 1e-30  # avoid division by zero
-        frac_diff_fereisl = abs(e_dot_qlt - e_dot_fereisl) / denom
+        frac_diff_feireisl = abs(e_dot_qlt - e_dot_feireisl) / denom
         frac_diff_tw = abs(e_dot_qlt - e_dot_tw) / denom
         
-        rows.append((eps, frac_diff_fereisl, frac_diff_tw))
+        rows.append((eps, frac_diff_feireisl, frac_diff_tw))
         
         print(
-            f"  eps={eps:.4g}:  Fereisl Δ(de/dtheta)={frac_diff_fereisl:.6e}  |  "
+            f"  eps={eps:.4g}:  Feireisl Δ(de/dtheta)={frac_diff_feireisl:.6e}  |  "
             f"TW Δ(de/dtheta)={frac_diff_tw:.6e}"
         )
     
@@ -1097,7 +1110,7 @@ def plot_rhs_fractional_differences(rows: List[Tuple[float, float, float]],
     Plot fractional RHS differences vs epsilon on a log-log scale.
     
     The slope on this plot reveals the PN convergence order:
-    - Slope +2: next missing order is eps² away (e.g., Fereisl 4.5PN vs QLT with 5.5PN terms)
+    - Slope +2: next missing order is eps² away (e.g., Feireisl 4.5PN vs QLT with 5.5PN terms)
     - Slope 0: constant fractional difference independent of eps (e.g., two implementations 
       of same PN order differing only in polynomial coefficients)
     """
@@ -1110,13 +1123,13 @@ def plot_rhs_fractional_differences(rows: List[Tuple[float, float, float]],
     out_path = _resolve_output_path(output_image)
     
     eps_vals = []
-    frac_fereisl_vals = []
+    frac_feireisl_vals = []
     frac_tw_vals = []
     
-    for eps, frac_fereisl, frac_tw in rows:
-        if eps > 0.0 and math.isfinite(eps) and math.isfinite(frac_fereisl) and math.isfinite(frac_tw):
+    for eps, frac_feireisl, frac_tw in rows:
+        if eps > 0.0 and math.isfinite(eps) and math.isfinite(frac_feireisl) and math.isfinite(frac_tw):
             eps_vals.append(eps)
-            frac_fereisl_vals.append(frac_fereisl)
+            frac_feireisl_vals.append(frac_feireisl)
             frac_tw_vals.append(frac_tw)
     
     def _log_series(y_vals: List[float]) -> Tuple[np.ndarray, np.ndarray]:
@@ -1128,17 +1141,17 @@ def plot_rhs_fractional_differences(rows: List[Tuple[float, float, float]],
                 y.append(math.log10(y_val))
         return np.array(x), np.array(y)
     
-    x_fereisl, y_fereisl = _log_series(frac_fereisl_vals)
+    x_feireisl, y_feireisl = _log_series(frac_feireisl_vals)
     x_tw, y_tw = _log_series(frac_tw_vals)
     
     plt.figure(figsize=(10, 6))
     
-    if x_fereisl.size > 0:
-        plt.plot(x_fereisl, y_fereisl, "o-", linewidth=2.5, markersize=8, 
-                 label="Fereisl vs QLT (expect slope +2)")
+    if x_feireisl.size > 0:
+        plt.plot(x_feireisl, y_feireisl, "o-", linewidth=2.5, markersize=8, 
+                 label="Feireisl vs QLT (expect slope +2)")
     if x_tw.size > 0:
         plt.plot(x_tw, y_tw, "s-", linewidth=2.5, markersize=8, 
-                 label="TW vs Fereisl (expect slope ≈0)")
+                 label="TW vs Feireisl (expect slope ≈0)")
     
     plt.xlabel("log₁₀(ε)", fontsize=12, fontweight='bold')
     plt.ylabel("log₁₀(|Δ(de/dθ)| / |de/dθ|_QLT)", fontsize=12, fontweight='bold')
@@ -1210,7 +1223,7 @@ def compute_log_phi_vs_log_epsilon_data(
         phi_end: float,
     tolerance: float) -> List[Tuple[float, float, float, float]]:
     """
-    For each epsilon, integrate QLT/Fereisl/TW in phi and record the first phi
+    For each epsilon, integrate QLT/Feireisl/TW in phi and record the first phi
     where eccentricity e = sqrt(alpha^2 + beta^2) drops below a target fraction
     of the initial eccentricity.
     """
@@ -1234,47 +1247,53 @@ def compute_log_phi_vs_log_epsilon_data(
         def rhs_qlt(s, p, phi):
             return compute_qlt_rhs_phi(s, p, max_pn_order, phi)
 
-        def rhs_fereisl(s, p, phi):
-            return compute_fereisl_physical_rhs(s, p, max_pn_order, phi)
+        def rhs_feireisl(s, p, phi):
+            return compute_feireisl_physical_rhs(s, p, max_pn_order, phi)
 
         def rhs_tw(s, p, phi):
             return compute_tw_physical_rhs(s, p, max_pn_order, phi)
 
         result_qlt = integrator.integrate(initial_state, sp, rhs_qlt, 0.0, phi_end)
-        result_fereisl = integrator.integrate(initial_state, sp, rhs_fereisl, 0.0, phi_end)
-        result_tw = integrator.integrate(initial_state, sp, rhs_tw, 0.0, phi_end)
+
+        initial_tilde_feireisl = _approximate_tilde_from_actual(initial_state, sp, use_TW=False)
+        result_feireisl_tilde = integrator.integrate(initial_tilde_feireisl, sp, rhs_feireisl, 0.0, phi_end)
+        result_feireisl = reconstruct_physical_trajectory_from_tilde(result_feireisl_tilde, sp, use_TW=False)
+
+        initial_tilde_tw = _approximate_tilde_from_actual(initial_state, sp, use_TW=True)
+        result_tw_tilde = integrator.integrate(initial_tilde_tw, sp, rhs_tw, 0.0, phi_end)
+        result_tw = reconstruct_physical_trajectory_from_tilde(result_tw_tilde, sp, use_TW=True)
 
         # Extract end-state orbital elements in a common (physical) coordinate system.
         s_qlt = result_qlt.states[-1] if result_qlt.states else BinaryState()
-        s_fereisl = result_fereisl.states[-1] if result_fereisl.states else BinaryState()
+        s_feireisl = result_feireisl.states[-1] if result_feireisl.states else BinaryState()
         s_tw = result_tw.states[-1] if result_tw.states else BinaryState()
 
         # Get final phi values for reference
         phi_qlt = result_qlt.theta[-1] if result_qlt.theta else phi_end
-        phi_fereisl = result_fereisl.theta[-1] if result_fereisl.theta else phi_end
+        phi_feireisl = result_feireisl.theta[-1] if result_feireisl.theta else phi_end
         phi_tw = result_tw.theta[-1] if result_tw.theta else phi_end
 
         # Compute end-state differences
-        dp_qf = abs(s_qlt.p - s_fereisl.p)
-        da_qf = abs(s_qlt.alpha - s_fereisl.alpha)
-        db_qf = abs(s_qlt.beta - s_fereisl.beta)
+        dp_qf = abs(s_qlt.p - s_feireisl.p)
+        da_qf = abs(s_qlt.alpha - s_feireisl.alpha)
+        db_qf = abs(s_qlt.beta - s_feireisl.beta)
 
         dp_qt = abs(s_qlt.p - s_tw.p)
         da_qt = abs(s_qlt.alpha - s_tw.alpha)
         db_qt = abs(s_qlt.beta - s_tw.beta)
 
-        dp_ft = abs(s_fereisl.p - s_tw.p)
-        da_ft = abs(s_fereisl.alpha - s_tw.alpha)
-        db_ft = abs(s_fereisl.beta - s_tw.beta)
+        dp_ft = abs(s_feireisl.p - s_tw.p)
+        da_ft = abs(s_feireisl.alpha - s_tw.alpha)
+        db_ft = abs(s_feireisl.beta - s_tw.beta)
 
-        rows.append((eps, phi_qlt, phi_fereisl, phi_tw))
+        rows.append((eps, phi_qlt, phi_feireisl, phi_tw))
 
         print(
             f"[eps scan] eps={eps:.4g} | phi_end: qlt={phi_qlt:.6e}, "
-            f"fereisl={phi_fereisl:.6e}, tw={phi_tw:.6e}"
+            f"feireisl={phi_feireisl:.6e}, tw={phi_tw:.6e}"
         )
         print(
-            f"           end-state: QLT vs Fereisl: "
+            f"           end-state: QLT vs Feireisl: "
             f"Δp={dp_qf:.6e}, Δα={da_qf:.6e}, Δβ={db_qf:.6e}"
         )
         print(
@@ -1282,7 +1301,7 @@ def compute_log_phi_vs_log_epsilon_data(
             f"Δp={dp_qt:.6e}, Δα={da_qt:.6e}, Δβ={db_qt:.6e}"
         )
         print(
-            f"           end-state: Fereisl vs TW: "
+            f"           end-state: Feireisl vs TW: "
             f"Δp={dp_ft:.6e}, Δα={da_ft:.6e}, Δβ={db_ft:.6e}"
         )
 
@@ -1300,13 +1319,13 @@ def plot_log_phi_vs_log_epsilon(rows: List[Tuple[float, float, float, float]], o
 
     eps_vals = []
     phi_qlt_vals = []
-    phi_fereisl_vals = []
+    phi_feireisl_vals = []
     phi_tw_vals = []
 
-    for eps, p_qlt, p_fereisl, p_tw in rows:
+    for eps, p_qlt, p_feireisl, p_tw in rows:
         eps_vals.append(eps)
         phi_qlt_vals.append(p_qlt)
-        phi_fereisl_vals.append(p_fereisl)
+        phi_feireisl_vals.append(p_feireisl)
         phi_tw_vals.append(p_tw)
 
     def _log_series(y_vals: List[float]) -> Tuple[np.ndarray, np.ndarray]:
@@ -1319,14 +1338,14 @@ def plot_log_phi_vs_log_epsilon(rows: List[Tuple[float, float, float, float]], o
         return np.array(x), np.array(y)
 
     x_q, y_q = _log_series(phi_qlt_vals)
-    x_f, y_f = _log_series(phi_fereisl_vals)
+    x_f, y_f = _log_series(phi_feireisl_vals)
     x_t, y_t = _log_series(phi_tw_vals)
 
     plt.figure(figsize=(8, 5))
     if x_q.size:
         plt.plot(x_q, y_q, "o-", label="QLT")
     if x_f.size:
-        plt.plot(x_f, y_f, "s-", label="Fereisl")
+        plt.plot(x_f, y_f, "s-", label="Feireisl")
     if x_t.size:
         plt.plot(x_t, y_t, "^-", label="TW")
 
@@ -1352,7 +1371,7 @@ def main() -> None:
 
     theta_start  = 0.0
     theta_end    = 10.0
-    tolerance    = 1e-9
+    tolerance    = 1e-14
     max_pn_order = 5
 
     print("=== Adaptive RK4 Integration Comparison ===")
