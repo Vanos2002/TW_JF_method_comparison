@@ -1071,9 +1071,9 @@ def compute_rhs_fractional_differences(
     ) -> List[Tuple[float, float, float]]:
     """
     For each epsilon, evaluate a one-step instantaneous rate probe and compute
-    the fractional difference in de/dtheta in a common (physical) coordinate system:
+    the fractional difference in de/dphi in a common (physical) coordinate system:
     
-        Δ(de/dtheta) = |de/dtheta_QLT − de/dtheta_Feireisl| / |de/dtheta_QLT|
+        Δ(de/dphi) = |de/dphi_QLT − de/dphi_Feireisl| / |de/dphi_QLT|
         
     Returns list of tuples: (eps, frac_diff_feireisl, frac_diff_tw)
     
@@ -1084,10 +1084,10 @@ def compute_rhs_fractional_differences(
       slope ≈ 0 since they differ by a constant fraction independent of eps; the two 
       term_alpha polynomials differ by a tiny numerical constant, not a PN-order difference.
     """
-    print("\n=== Instantaneous RHS Convergence Analysis (de/dtheta) ===")
+    print("\n=== Instantaneous RHS Convergence Analysis (de/dphi) ===")
     print(f"Initial state: p={initial_state.p}, alpha={initial_state.alpha}, beta={initial_state.beta}")
     print(f"Evaluating RHS at fixed initial state for each epsilon...")
-    print(f"Observable: Δ(de/dtheta) = |de/dtheta_QLT − de/dtheta_method| / |de/dtheta_QLT|")
+    print(f"Observable: Δ(de/dphi) = |de/dphi_QLT − de/dphi_method| / |de/dphi_QLT|")
     print(f"On log-log plot: slope +2 indicates next missing PN order is eps² away\n")
     
     rows: List[Tuple[float, float, float]] = []
@@ -1140,8 +1140,8 @@ def compute_rhs_fractional_differences(
         rows.append((eps, frac_diff_feireisl, frac_diff_tw))
         
         print(
-            f"  eps={eps:.4g}:  Feireisl Δ(de/dtheta)={frac_diff_feireisl:.6e}  |  "
-            f"TW Δ(de/dtheta)={frac_diff_tw:.6e}"
+            f"  eps={eps:.4g}:  Feireisl Δ(de/dphi)={frac_diff_feireisl:.6e}  |  "
+            f"TW Δ(de/dphi)={frac_diff_tw:.6e}"
         )
     
     return rows
