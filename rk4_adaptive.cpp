@@ -1365,12 +1365,12 @@ std::vector<RHSFractionalDiffRow> computeRHSFractionalDifferences(
     int max_PN_order,
     const std::vector<double>& epsilon_values
 ) {
-    std::cout << "\n=== Instantaneous RHS Convergence Analysis (de/dtheta) ===" << std::endl;
+    std::cout << "\n=== Instantaneous RHS Convergence Analysis (de/dphi) ===" << std::endl;
     std::cout << "Initial state: p=" << initial_state.p
               << ", alpha=" << initial_state.alpha
               << ", beta=" << initial_state.beta << std::endl;
     std::cout << "Evaluating RHS at fixed initial state for each epsilon..." << std::endl;
-    std::cout << "Observable: |de/dtheta_QLT - de/dtheta_method| / |de/dtheta_QLT|" << std::endl;
+    std::cout << "Observable: |de/dphi_QLT - de/dphi_method| / |de/dphi_QLT|" << std::endl;
 
     std::vector<RHSFractionalDiffRow> rows;
     rows.reserve(epsilon_values.size());
