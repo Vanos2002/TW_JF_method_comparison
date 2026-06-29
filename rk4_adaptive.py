@@ -1383,8 +1383,6 @@ def main() -> None:
     phi_end   = params.eps * theta_end
     print(f"Phi-transformed integration: phi = [{phi_start}, {phi_end}]")
 
-    # PNG-only mode: skip CSV-producing routines.
-
     eps_scan_values = [0.032, 0.016, 0.008, 0.004, 0.002]
     
     # Fast RHS-only convergence analysis (milliseconds)
