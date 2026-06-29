@@ -78,8 +78,8 @@ Both integrators use tolerance $10^{-14}$. Their end-states agree to machine pre
 ## Results
 
 The figure below shows $|\Delta p(\varphi_\mathrm{end})|$ vs $\varepsilon$ for the three pairwise comparisons.
+[pn_convergence.pdf](https://github.com/user-attachments/files/29460513/pn_convergence.pdf)
 
-![PN convergence](pn_convergence.png)
 
 | Comparison | Observed scaling | Interpretation |
 |---|---|---|
