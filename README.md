@@ -72,7 +72,7 @@ To ensure all results are independent of the integration scheme, two entirely in
 | Implicit Gauss collocation | Implicit | High | Fixed tolerance | $[10^{-10},\ 10^{-2}]$ | $10^5$ |
 
 
-Both integrators use tolerance $10^{-14}$. Their end-states agree to machine precision across all $\varepsilon$ values tested, confirming that all observed differences between methods are physical, not numerical.
+Both integrators use a tolerance $10^{-14}$. Their end-states agree to machine precision across all $\varepsilon$ values tested, confirming that all observed differences between methods are physical, not numerical.
 
 ---
 ## Results
@@ -80,7 +80,7 @@ TW is marginally closer to QLT by 4.4% at ε = 0.032, but this advantage is ε³
 The figure below shows $|\Delta p(\varphi_\mathrm{end})|$ vs $\varepsilon$ for the three pairwise comparisons.
 <img width="1088" height="840" alt="Screenshot 2026-06-29 at 11 54 50" src="https://github.com/user-attachments/assets/d097e7fa-c866-4a78-91d2-616512a6129b" />
 
-
+The deviation from ε⁵ at small ε is not a physical effect but a consequence of the integrator tolerance, and it actually confirms the result: the two implementations are in close numerical agreement at 4.5PN that their difference becomes unresolvable below a certain ε.
 
 | Comparison | Observed scaling | Interpretation |
 |---|---|---|
