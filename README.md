@@ -70,11 +70,11 @@ To ensure all results are independent of the integration scheme, two entirely in
 |---|---|---|---|---|---|
 | Adaptive RK4 | Explicit | 4 | Step-doubling, scale $(0.9 \cdot (\mathrm{tol}/\mathrm{err})^{0.2})$ | $[10^{-10},\ 10^{-2}]$ | $10^5$ |
 | Implicit Gauss collocation | Implicit | High | Fixed tolerance | $[10^{-10},\ 10^{-2}]$ | $10^5$ |
----
+
 
 Both integrators use tolerance $10^{-14}$. Their end-states agree to machine precision across all $\varepsilon$ values tested, confirming that all observed differences between methods are physical, not numerical.
 
-
+---
 ## Results
 
 The figure below shows $|\Delta p(\varphi_\mathrm{end})|$ vs $\varepsilon$ for the three pairwise comparisons.
