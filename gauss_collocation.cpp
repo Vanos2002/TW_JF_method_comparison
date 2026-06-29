@@ -1,10 +1,10 @@
-// This file is called sunday.cpp in VS Code
+// This file is called "sunday.cpp" in VS Code
 // THIS CODE WAS CREATED ON THURSDAY JUNE 4, 2026
-// THIS FILE COMPARES THE FEREISL-TUCKERWILL 4.5PN EXPRESSIONS TO THE RK4 ADAPTIVE CODE
+// THIS FILE COMPARES THE Feireisl-TUCKERWILL 4.5PN EXPRESSIONS TO THE RK4 ADAPTIVE CODE
 
 // From the article "Residual eccentricity of inspiralling orbits at the gravitational-wave detection threshold: Accurate estimates using post-Newtonian theory"
 // by Alexandria Tucker and Clifford M. Will (arXiv:2108.12210v2 [gr-qc] 15 Nov 2021)
-// We compare the transformed 4.5PN contributions of dp/dtheta and de/dtheta from the Fereisl-Tucker-Will (FTW) paper against the numerical orbit-averaged QLT results
+// We compare the transformed 4.5PN contributions of dp/dtheta and de/dtheta from the Feireisl-Tucker-Will (FTW) paper against the numerical orbit-averaged QLT results
 
 #include <iostream>
 #include <fstream>
@@ -239,7 +239,7 @@ QLTrhs computeQLT(const PNCoeffs& K, double p,
 
 
 //-----------------------------------------------
-// JAN FEREISL RESULTS FOR EVOLUTION
+// JAN Feireisl RESULTS FOR EVOLUTION
 //-----------------------------------------------
 
 
@@ -269,7 +269,6 @@ std::array<double, 3> oscillatory_1PN(const BinaryState& state, const PhysicalPa
 std::array<double, 3> oscillatory_2PN(const BinaryState& state, const PhysicalParams& params);
 
 static constexpr int PHI_AVERAGE_SAMPLES = 512;
-static constexpr double PROBE_H = 1e-7;
 using QLTrhsFunc = std::function<QLTrhs(const BinaryState&)>;
 
 static QLTrhs addQLT(const QLTrhs& a, const QLTrhs& b) {
@@ -768,7 +767,7 @@ SecularRHS compute_secular_RHS(const BinaryState& state, const PhysicalParams& p
 // TUCKER-WILL RESULTS FOR EVOLUTION (ONLY DIFFER AT 4.5 PN ORDER)
 //----------------------------------------------------------------
 
-// Tucker-Will orders 1PN through 3.5PN are identical to Fereisl - use aliases
+// Tucker-Will orders 1PN through 3.5PN are identical to Feireisl - use aliases
 inline SecularRHS secular_1PN_TW(const BinaryState& state, const PhysicalParams& params) {
     return secular_1PN(state, params);
 }
@@ -794,7 +793,7 @@ inline SecularRHS secular_3_5PN_TW(const BinaryState& state, const PhysicalParam
 }
 
 // ============================================================================
-// 4.5 PN ORDER TERMS (Tucker-Will) - Only difference from Fereisl
+// 4.5 PN ORDER TERMS (Tucker-Will) - Only difference from Feireisl
 // ============================================================================
 
 SecularRHS secular_4_5PN_TW(const BinaryState& state, const PhysicalParams& params) {
@@ -862,7 +861,7 @@ SecularRHS secular_4_5PN_TW(const BinaryState& state, const PhysicalParams& para
 // ============================================================================
 
 SecularRHS compute_secular_RHS_TW(const BinaryState& state, const PhysicalParams& params, int max_PN_order) {
-    // Tucker-Will equations are identical to Fereisl for orders 1-3.5PN
+    // Tucker-Will equations are identical to Feireisl for orders 1-3.5PN
     SecularRHS total_rhs = compute_secular_RHS(state, params, std::min(max_PN_order, 4));
     
     // Replace 4.5PN order with Tucker-Will version
@@ -908,55 +907,16 @@ static double compute_dtheta_dphi(const BinaryState& state,
     return params.eps * dphi_dt_newt / dphi_dt_pn;
 }
 
-static std::pair<SecularRHS, SecularRHS> oscillatoryPhiDerivativesAtFixedState(
-    const BinaryState& state,
-    const PhysicalParams& params,
-    double phi,
-    double h = PROBE_H
-) {
-    PhysicalParams plus = params;
-    plus.phi = phi + h;
-    PhysicalParams minus = params;
-    minus.phi = phi - h;
-
-    auto y2_plus = oscillatory_1PN(state, plus);
-    auto y2_minus = oscillatory_1PN(state, minus);
-    auto y4_plus = oscillatory_2PN(state, plus);
-    auto y4_minus = oscillatory_2PN(state, minus);
-
-    SecularRHS dY2{};
-    SecularRHS dY4{};
-    double inv_2h = 1.0 / (2.0 * h);
-    for (int i = 0; i < 3; ++i) {
-        dY2[i] = (y2_plus[i] - y2_minus[i]) * inv_2h;
-        dY4[i] = (y4_plus[i] - y4_minus[i]) * inv_2h;
-    }
-    return {dY2, dY4};
-}
-
-SecularRHS compute_fereisl_physical_RHS(const BinaryState& state,
+SecularRHS compute_feireisl_physical_RHS(const BinaryState& state,
                                         const PhysicalParams& params,
                                         int max_PN_order,
                                         double phi) {
-    double eps2 = params.eps * params.eps;
-    double eps4 = eps2 * eps2;
-
     auto rhs_theta = compute_secular_RHS(state, params, max_PN_order);
     double dtheta_dphi = compute_dtheta_dphi(state, params, phi);
-    SecularRHS rhs_phi{
+    return {
         rhs_theta[0] * dtheta_dphi,
         rhs_theta[1] * dtheta_dphi,
         rhs_theta[2] * dtheta_dphi
-    };
-
-    auto dYs = oscillatoryPhiDerivativesAtFixedState(state, params, phi);
-    const auto& dY2 = dYs.first;
-    const auto& dY4 = dYs.second;
-
-    return {
-        rhs_phi[0] + eps2 * dY2[0] + eps4 * dY4[0],
-        rhs_phi[1] + eps2 * dY2[1] + eps4 * dY4[1],
-        rhs_phi[2] + eps2 * dY2[2] + eps4 * dY4[2]
     };
 }
 
@@ -964,25 +924,12 @@ SecularRHS compute_tw_physical_RHS(const BinaryState& state,
                                    const PhysicalParams& params,
                                    int max_PN_order,
                                    double phi) {
-    double eps2 = params.eps * params.eps;
-    double eps4 = eps2 * eps2;
-
     auto rhs_theta = compute_secular_RHS_TW(state, params, max_PN_order);
     double dtheta_dphi = compute_dtheta_dphi(state, params, phi);
-    SecularRHS rhs_phi{
+    return {
         rhs_theta[0] * dtheta_dphi,
         rhs_theta[1] * dtheta_dphi,
         rhs_theta[2] * dtheta_dphi
-    };
-
-    auto dYs = oscillatoryPhiDerivativesAtFixedState(state, params, phi);
-    const auto& dY2 = dYs.first;
-    const auto& dY4 = dYs.second;
-
-    return {
-        rhs_phi[0] + eps2 * dY2[0] + eps4 * dY4[0],
-        rhs_phi[1] + eps2 * dY2[1] + eps4 * dY4[1],
-        rhs_phi[2] + eps2 * dY2[2] + eps4 * dY4[2]
     };
 }
 
@@ -1040,6 +987,29 @@ struct IntegrationResult {
     std::vector<double> error_estimates;
     int num_steps;
 };
+
+static BinaryState reconstructPhysicalStateFromTilde(const BinaryState& tilde_state,
+                                                     const PhysicalParams& params,
+                                                     double phi,
+                                                     bool useTW = false) {
+    PhysicalParams params_phi = params;
+    params_phi.phi = phi;
+    return transformTildeStateToActual(tilde_state, params_phi, useTW);
+}
+
+static IntegrationResult reconstructPhysicalTrajectoryFromTilde(const IntegrationResult& tilde_result,
+                                                                const PhysicalParams& params,
+                                                                bool useTW = false) {
+    IntegrationResult physical_result = tilde_result;
+    physical_result.states.clear();
+    physical_result.states.reserve(tilde_result.states.size());
+    for (size_t i = 0; i < tilde_result.states.size() && i < tilde_result.theta.size(); ++i) {
+        physical_result.states.push_back(
+            reconstructPhysicalStateFromTilde(tilde_result.states[i], params, tilde_result.theta[i], useTW)
+        );
+    }
+    return physical_result;
+}
 
 class AdaptiveGaussCollocationIntegrator {
 private:
@@ -1203,10 +1173,10 @@ void compareEvolutionMethods(
 ) {
     AdaptiveGaussCollocationIntegrator integrator(tolerance);
     
-    auto rhs_fereisl = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double /*theta*/) {
+    auto rhs_feireisl = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double /*theta*/) {
         return compute_secular_RHS(s, p, max_PN_order);
     };
-    auto result_fereisl = integrator.integrate(initial_state, params, rhs_fereisl, theta_start, theta_end);
+    auto result_feireisl = integrator.integrate(initial_state, params, rhs_feireisl, theta_start, theta_end);
     
     auto rhs_tw = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double /*theta*/) {
         return compute_secular_RHS_TW(s, p, max_PN_order);
@@ -1215,13 +1185,13 @@ void compareEvolutionMethods(
     
     std::ofstream outfile(output_file);
     outfile << std::scientific << std::setprecision(10);
-    outfile << "theta,p_fereisl,alpha_fereisl,beta_fereisl,p_tw,alpha_tw,beta_tw,"
+    outfile << "theta,p_feireisl,alpha_feireisl,beta_feireisl,p_tw,alpha_tw,beta_tw,"
             << "dp_diff,dalpha_diff,dbeta_diff,max_diff\n";
     
-    size_t min_size = std::min(result_fereisl.states.size(), result_tw.states.size());
+    size_t min_size = std::min(result_feireisl.states.size(), result_tw.states.size());
     for (size_t i = 0; i < min_size; ++i) {
-        double theta = result_fereisl.theta[i];
-        auto& state_f = result_fereisl.states[i];
+        double theta = result_feireisl.theta[i];
+        auto& state_f = result_feireisl.states[i];
         auto& state_tw_i = result_tw.states[i];
         
         double dp_diff = std::abs(state_f.p - state_tw_i.p);
@@ -1237,7 +1207,7 @@ void compareEvolutionMethods(
     outfile.close();
     
     std::cout << "\n=== CONVERGENCE COMPARISON ===" << std::endl;
-    std::cout << "Fereisl steps: " << result_fereisl.num_steps << std::endl;
+    std::cout << "Feireisl steps: " << result_feireisl.num_steps << std::endl;
     std::cout << "Tucker-Will steps: " << result_tw.num_steps << std::endl;
     std::cout << "Results written to: " << output_file << std::endl;
 }
@@ -1253,25 +1223,29 @@ void compareEvolutionMethodsPhi(
 ) {
     AdaptiveGaussCollocationIntegrator integrator(tolerance);
 
-    auto rhs_fereisl = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double phi) {
-        return compute_fereisl_physical_RHS(s, p, max_PN_order, phi);
+    auto rhs_feireisl = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double phi) {
+        return compute_feireisl_physical_RHS(s, p, max_PN_order, phi);
     };
-    auto result_fereisl = integrator.integrate(initial_state, params, rhs_fereisl, phi_start, phi_end);
+    BinaryState initial_tilde_feireisl = approximateTildeFromActual(initial_state, params, false);
+    auto result_feireisl_tilde = integrator.integrate(initial_tilde_feireisl, params, rhs_feireisl, phi_start, phi_end);
+    auto result_feireisl = reconstructPhysicalTrajectoryFromTilde(result_feireisl_tilde, params, false);
 
     auto rhs_tw = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double phi) {
         return compute_tw_physical_RHS(s, p, max_PN_order, phi);
     };
-    auto result_tw = integrator.integrate(initial_state, params, rhs_tw, phi_start, phi_end);
+    BinaryState initial_tilde_tw = approximateTildeFromActual(initial_state, params, true);
+    auto result_tw_tilde = integrator.integrate(initial_tilde_tw, params, rhs_tw, phi_start, phi_end);
+    auto result_tw = reconstructPhysicalTrajectoryFromTilde(result_tw_tilde, params, true);
 
     std::ofstream outfile(output_file);
     outfile << std::scientific << std::setprecision(10);
-    outfile << "phi,p_fereisl_actual,alpha_fereisl_actual,beta_fereisl_actual,"
+    outfile << "phi,p_feireisl_actual,alpha_feireisl_actual,beta_feireisl_actual,"
             << "p_tw_actual,alpha_tw_actual,beta_tw_actual,dp_diff,dalpha_diff,dbeta_diff,max_diff\n";
 
-    size_t min_size = std::min(result_fereisl.states.size(), result_tw.states.size());
+    size_t min_size = std::min(result_feireisl.states.size(), result_tw.states.size());
     for (size_t i = 0; i < min_size; ++i) {
-        double phi = result_fereisl.theta[i];
-        auto& state_f = result_fereisl.states[i];
+        double phi = result_feireisl.theta[i];
+        auto& state_f = result_feireisl.states[i];
         auto& state_tw_i = result_tw.states[i];
 
         auto actual_f = state_f;
@@ -1290,7 +1264,7 @@ void compareEvolutionMethodsPhi(
     outfile.close();
 
     std::cout << "=== PHI-BASED TRANSFORMED COMPARISON ===" << std::endl;
-    std::cout << "Fereisl steps: " << result_fereisl.num_steps << std::endl;
+    std::cout << "Feireisl steps: " << result_feireisl.num_steps << std::endl;
     std::cout << "Tucker-Will steps: " << result_tw.num_steps << std::endl;
     std::cout << "Phi-based actual comparison written to: " << output_file << std::endl;
 }
@@ -1299,20 +1273,20 @@ struct EpsScanResult {
     double eps;
     double phi;
     double max_diff;
-    int fereisl_steps;
+    int feireisl_steps;
     int tw_steps;
 };
 
 struct EpsPhiRow {
     double eps;
     double phi_qlt;
-    double phi_fereisl;
+    double phi_feireisl;
     double phi_tw;
 };
 
 struct RHSFractionalDiffRow {
     double eps;
-    double frac_fereisl;
+    double frac_feireisl;
     double frac_tw;
 };
 
@@ -1366,8 +1340,10 @@ std::vector<RHSFractionalDiffRow> computeRHSFractionalDifferences(
         scan_params.eps = eps;
 
         auto rhs_qlt = compute_QLT_RHS_phi(initial_state, scan_params, max_PN_order, 0.0);
-        auto rhs_f = compute_fereisl_physical_RHS(initial_state, scan_params, max_PN_order, 0.0);
-        auto rhs_tw = compute_tw_physical_RHS(initial_state, scan_params, max_PN_order, 0.0);
+        BinaryState tilde0_f = approximateTildeFromActual(initial_state, scan_params, false);
+        auto rhs_tilde_f = compute_feireisl_physical_RHS(tilde0_f, scan_params, max_PN_order, 0.0);
+        BinaryState tilde0_tw = approximateTildeFromActual(initial_state, scan_params, true);
+        auto rhs_tilde_tw = compute_tw_physical_RHS(tilde0_tw, scan_params, max_PN_order, 0.0);
 
         BinaryState qlt_next{
             initial_state.p + probe_h * rhs_qlt[0],
@@ -1376,19 +1352,23 @@ std::vector<RHSFractionalDiffRow> computeRHSFractionalDifferences(
         };
         double e_dot_qlt = (eccentricity(qlt_next) - eccentricity(initial_state)) / probe_h;
 
-        BinaryState f_next{
-            initial_state.p + probe_h * rhs_f[0],
-            initial_state.alpha + probe_h * rhs_f[1],
-            initial_state.beta + probe_h * rhs_f[2]
+        BinaryState tilde1_f{
+            tilde0_f.p + probe_h * rhs_tilde_f[0],
+            tilde0_f.alpha + probe_h * rhs_tilde_f[1],
+            tilde0_f.beta + probe_h * rhs_tilde_f[2]
         };
-        double e_dot_f = (eccentricity(f_next) - eccentricity(initial_state)) / probe_h;
+        BinaryState physical0_f = reconstructPhysicalStateFromTilde(tilde0_f, scan_params, 0.0, false);
+        BinaryState physical1_f = reconstructPhysicalStateFromTilde(tilde1_f, scan_params, probe_h, false);
+        double e_dot_f = (eccentricity(physical1_f) - eccentricity(physical0_f)) / probe_h;
 
-        BinaryState tw_next{
-            initial_state.p + probe_h * rhs_tw[0],
-            initial_state.alpha + probe_h * rhs_tw[1],
-            initial_state.beta + probe_h * rhs_tw[2]
+        BinaryState tilde1_tw{
+            tilde0_tw.p + probe_h * rhs_tilde_tw[0],
+            tilde0_tw.alpha + probe_h * rhs_tilde_tw[1],
+            tilde0_tw.beta + probe_h * rhs_tilde_tw[2]
         };
-        double e_dot_tw = (eccentricity(tw_next) - eccentricity(initial_state)) / probe_h;
+        BinaryState physical0_tw = reconstructPhysicalStateFromTilde(tilde0_tw, scan_params, 0.0, true);
+        BinaryState physical1_tw = reconstructPhysicalStateFromTilde(tilde1_tw, scan_params, probe_h, true);
+        double e_dot_tw = (eccentricity(physical1_tw) - eccentricity(physical0_tw)) / probe_h;
 
         double denom = std::abs(e_dot_qlt) + 1e-30;
         double frac_f = std::abs(e_dot_qlt - e_dot_f) / denom;
@@ -1398,7 +1378,7 @@ std::vector<RHSFractionalDiffRow> computeRHSFractionalDifferences(
 
         std::cout << std::scientific << std::setprecision(6)
                   << "  eps=" << std::setprecision(4) << eps
-                  << ": Fereisl frac=" << std::setprecision(6) << frac_f
+                  << ": Feireisl frac=" << std::setprecision(6) << frac_f
                   << " | TW frac=" << frac_tw << std::endl;
         std::cout << std::defaultfloat;
     }
@@ -1423,7 +1403,7 @@ void plotRHSFractionalDifferences(const std::vector<RHSFractionalDiffRow>& rows,
             "xt=[math.log10(r[0]) for r in rows if r[0]>0 and r[2]>0 and math.isfinite(r[2])];"
             "yt=[math.log10(r[2]) for r in rows if r[0]>0 and r[2]>0 and math.isfinite(r[2])];"
             "plt.figure(figsize=(8,5));"
-            "plt.plot(xf,yf,'o-',label='Fereisl vs QLT') if xf else None;"
+            "plt.plot(xf,yf,'o-',label='Feireisl vs QLT') if xf else None;"
             "plt.plot(xt,yt,'s-',label='TW vs QLT') if xt else None;"
             "plt.xlabel('log10(epsilon)'); plt.ylabel('log10(fractional difference)');"
             "plt.title('Instantaneous RHS Fractional Differences');"
@@ -1435,7 +1415,7 @@ void plotRHSFractionalDifferences(const std::vector<RHSFractionalDiffRow>& rows,
             return false;
         }
         for (const auto& r : rows) {
-            std::fprintf(py, "%.17g %.17g %.17g\n", r.eps, r.frac_fereisl, r.frac_tw);
+            std::fprintf(py, "%.17g %.17g %.17g\n", r.eps, r.frac_feireisl, r.frac_tw);
         }
         int py_status = pclose(py);
         return py_status != -1 && WIFEXITED(py_status) && WEXITSTATUS(py_status) == 0;
@@ -1477,48 +1457,52 @@ std::vector<EpsPhiRow> computeLogPhiVsLogEpsilonData(
         auto rhs_qlt = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double phi) {
             return compute_QLT_RHS_phi(s, p, max_PN_order, phi);
         };
-        auto rhs_fereisl = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double phi) {
-            return compute_fereisl_physical_RHS(s, p, max_PN_order, phi);
+        auto rhs_feireisl = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double phi) {
+            return compute_feireisl_physical_RHS(s, p, max_PN_order, phi);
         };
         auto rhs_tw = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double phi) {
             return compute_tw_physical_RHS(s, p, max_PN_order, phi);
         };
 
         auto result_qlt = integrator.integrate(initial_state, scan_params, rhs_qlt, 0.0, phi_end);
-    auto result_fereisl = integrator.integrate(initial_state, scan_params, rhs_fereisl, 0.0, phi_end);
-    auto result_tw = integrator.integrate(initial_state, scan_params, rhs_tw, 0.0, phi_end);
+        BinaryState initial_tilde_feireisl = approximateTildeFromActual(initial_state, scan_params, false);
+        auto result_feireisl_tilde = integrator.integrate(initial_tilde_feireisl, scan_params, rhs_feireisl, 0.0, phi_end);
+        auto result_feireisl = reconstructPhysicalTrajectoryFromTilde(result_feireisl_tilde, scan_params, false);
+        BinaryState initial_tilde_tw = approximateTildeFromActual(initial_state, scan_params, true);
+        auto result_tw_tilde = integrator.integrate(initial_tilde_tw, scan_params, rhs_tw, 0.0, phi_end);
+        auto result_tw = reconstructPhysicalTrajectoryFromTilde(result_tw_tilde, scan_params, true);
 
         BinaryState s_qlt = result_qlt.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_qlt.states.back();
-    BinaryState s_fereisl = result_fereisl.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_fereisl.states.back();
-    BinaryState s_tw = result_tw.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_tw.states.back();
+        BinaryState s_feireisl = result_feireisl.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_feireisl.states.back();
+        BinaryState s_tw = result_tw.states.empty() ? BinaryState{0.0, 0.0, 0.0} : result_tw.states.back();
 
-        double dp_qf = std::abs(s_qlt.p - s_fereisl.p);
-        double da_qf = std::abs(s_qlt.alpha - s_fereisl.alpha);
-        double db_qf = std::abs(s_qlt.beta - s_fereisl.beta);
+        double dp_qf = std::abs(s_qlt.p - s_feireisl.p);
+        double da_qf = std::abs(s_qlt.alpha - s_feireisl.alpha);
+        double db_qf = std::abs(s_qlt.beta - s_feireisl.beta);
         double dp_qt = std::abs(s_qlt.p - s_tw.p);
         double da_qt = std::abs(s_qlt.alpha - s_tw.alpha);
         double db_qt = std::abs(s_qlt.beta - s_tw.beta);
-        double dp_ft = std::abs(s_fereisl.p - s_tw.p);
-        double da_ft = std::abs(s_fereisl.alpha - s_tw.alpha);
-        double db_ft = std::abs(s_fereisl.beta - s_tw.beta);
+        double dp_ft = std::abs(s_feireisl.p - s_tw.p);
+        double da_ft = std::abs(s_feireisl.alpha - s_tw.alpha);
+        double db_ft = std::abs(s_feireisl.beta - s_tw.beta);
 
         double phi_qlt = result_qlt.theta.empty() ? phi_end : result_qlt.theta.back();
-        double phi_fereisl = result_fereisl.theta.empty() ? phi_end : result_fereisl.theta.back();
+        double phi_feireisl = result_feireisl.theta.empty() ? phi_end : result_feireisl.theta.back();
         double phi_tw = result_tw.theta.empty() ? phi_end : result_tw.theta.back();
 
-        rows.push_back({eps, phi_qlt, phi_fereisl, phi_tw});
+        rows.push_back({eps, phi_qlt, phi_feireisl, phi_tw});
 
         std::cout << std::scientific << std::setprecision(6)
                   << "[eps scan] eps=" << std::setprecision(4) << eps
                   << " | phi_end: qlt=" << phi_qlt
-                  << ", fereisl=" << phi_fereisl
+                  << ", feireisl=" << phi_feireisl
                   << ", tw=" << phi_tw << std::endl;
         std::cout << std::setprecision(6)
-                  << "           end-state: QLT vs Fereisl: "
+                  << "           end-state: QLT vs Feireisl: "
                   << "dp=" << dp_qf << ", da=" << da_qf << ", db=" << db_qf << std::endl;
         std::cout << "           end-state: QLT vs TW: "
                   << "dp=" << dp_qt << ", da=" << da_qt << ", db=" << db_qt << std::endl;
-        std::cout << "           end-state: Fereisl vs TW: "
+        std::cout << "           end-state: Feireisl vs TW: "
                   << "dp=" << dp_ft << ", da=" << da_ft << ", db=" << db_ft << std::endl;
         std::cout << std::defaultfloat;
     }
@@ -1546,7 +1530,7 @@ void plotLogPhiVsLogEpsilon(const std::vector<EpsPhiRow>& rows, const std::strin
             "yt=[math.log10(r[3]) for r in rows if r[0]>0 and r[3]>0 and math.isfinite(r[3])];"
             "plt.figure(figsize=(8,5));"
             "plt.plot(xq,yq,'o-',label='QLT') if xq else None;"
-            "plt.plot(xf,yf,'s-',label='Fereisl') if xf else None;"
+            "plt.plot(xf,yf,'s-',label='Feireisl') if xf else None;"
             "plt.plot(xt,yt,'^-',label='TW') if xt else None;"
             "plt.xlabel('log10(epsilon)'); plt.ylabel('log10(phi)');"
             "plt.title('log(phi) vs log(epsilon)'); plt.grid(True, alpha=0.3);"
@@ -1558,7 +1542,7 @@ void plotLogPhiVsLogEpsilon(const std::vector<EpsPhiRow>& rows, const std::strin
             return false;
         }
         for (const auto& r : rows) {
-            std::fprintf(py, "%.17g %.17g %.17g %.17g\n", r.eps, r.phi_qlt, r.phi_fereisl, r.phi_tw);
+            std::fprintf(py, "%.17g %.17g %.17g %.17g\n", r.eps, r.phi_qlt, r.phi_feireisl, r.phi_tw);
         }
         int py_status = pclose(py);
         return py_status != -1 && WIFEXITED(py_status) && WEXITSTATUS(py_status) == 0;
@@ -1580,20 +1564,20 @@ EpsScanResult runEpsilonConvergenceScan(
     double tolerance
 ) {
     AdaptiveGaussCollocationIntegrator integrator(tolerance);
-    auto rhs_fereisl = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double /*theta*/) {
+    auto rhs_feireisl = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double /*theta*/) {
         return compute_secular_RHS(s, p, max_PN_order);
     };
     auto rhs_tw = [max_PN_order](const BinaryState& s, const PhysicalParams& p, double /*theta*/) {
         return compute_secular_RHS_TW(s, p, max_PN_order);
     };
 
-    auto result_fereisl = integrator.integrate(initial_state, params, rhs_fereisl, theta_start, theta_end);
+    auto result_feireisl = integrator.integrate(initial_state, params, rhs_feireisl, theta_start, theta_end);
     auto result_tw = integrator.integrate(initial_state, params, rhs_tw, theta_start, theta_end);
 
     double max_diff = 0.0;
-    size_t min_size = std::min(result_fereisl.states.size(), result_tw.states.size());
+    size_t min_size = std::min(result_feireisl.states.size(), result_tw.states.size());
     for (size_t i = 0; i < min_size; ++i) {
-        auto& state_f = result_fereisl.states[i];
+        auto& state_f = result_feireisl.states[i];
         auto& state_tw_i = result_tw.states[i];
         double dp_diff = std::abs(state_f.p - state_tw_i.p);
         double da_diff = std::abs(state_f.alpha - state_tw_i.alpha);
@@ -1602,7 +1586,7 @@ EpsScanResult runEpsilonConvergenceScan(
         max_diff = std::max(max_diff, local_max);
     }
 
-    return {params.eps, max_diff, max_diff, result_fereisl.num_steps, result_tw.num_steps};
+    return {params.eps, max_diff, max_diff, result_feireisl.num_steps, result_tw.num_steps};
 }
 
 void writeEpsilonConvergenceCSV(
@@ -1616,7 +1600,7 @@ void writeEpsilonConvergenceCSV(
 ) {
     std::ofstream outfile(output_file);
     outfile << std::scientific << std::setprecision(10);
-    outfile << "eps,phi,max_diff,fereisl_steps,tw_steps\n";
+    outfile << "eps,phi,max_diff,feireisl_steps,tw_steps\n";
 
     std::vector<double> eps_values = {0.032, 0.016, 0.008, 0.004, 0.002};
     for (double eps : eps_values) {
@@ -1625,7 +1609,7 @@ void writeEpsilonConvergenceCSV(
         auto result = runEpsilonConvergenceScan(initial_state, scan_params, max_PN_order,
                                                 theta_start, theta_end, tolerance);
         outfile << result.eps << "," << result.phi << "," << result.max_diff << ","
-                << result.fereisl_steps << "," << result.tw_steps << "\n";
+                << result.feireisl_steps << "," << result.tw_steps << "\n";
     }
     outfile.close();
     std::cout << "Epsilon convergence scan written to: " << output_file << std::endl;
@@ -1640,7 +1624,7 @@ int main() {
     PhysicalParams params{1.0, 1.0, 0.25, 0.0, 1.0};
     
     double theta_start = 0.0, theta_end = 10.0;
-    double tolerance = 1e-8;
+    double tolerance = 1e-14;
     int max_PN_order = 5;
     
     std::cout << "=== Adaptive Gauss Collocation Integration Comparison ===" << std::endl;
