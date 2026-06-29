@@ -76,7 +76,7 @@ Both integrators use tolerance $10^{-14}$. Their end-states agree to machine pre
 
 ---
 ## Results
-
+TW is marginally closer to QLT by 4.4% at ε = 0.032, but this advantage is ε³-suppressed and becomes completely negligible at physically relevant ε values — at ε = 0.004 (already a modest PN regime) the difference is below 0.01%. 
 The figure below shows $|\Delta p(\varphi_\mathrm{end})|$ vs $\varepsilon$ for the three pairwise comparisons.
 <img width="1088" height="840" alt="Screenshot 2026-06-29 at 11 54 50" src="https://github.com/user-attachments/assets/d097e7fa-c866-4a78-91d2-616512a6129b" />
 
