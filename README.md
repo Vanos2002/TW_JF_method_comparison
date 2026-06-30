@@ -122,25 +122,6 @@ TW has a marginal advantage in p at large ε, but the gap is ε³-suppressed (dr
 
 **Conclusion:** Feireisl and TW are numerically equivalent implementations of the 4.5PN secular equations. Any preference between them is irrelevant at physically realistic ε values.
 
-### Practical magnitude
-
-| ε | TW closer to QLT (in p) by |
-|---|---|
-| 0.032 | 4.40 % |
-| 0.016 | 0.55 % |
-| 0.008 | 0.069 % |
-| 0.004 | 0.009 % |
-| 0.002 | 0.002 % |
-
-TW has a marginal advantage in p at large ε, but the gap is ε³-suppressed
-(drops by ≈ 8³ = 512× over the tested range) and is physically negligible for
-ε ≲ 0.01. For α and β the two methods are effectively tied across all tested
-values.
-
-**Conclusion:** Feireisl and TW are numerically equivalent implementations of
-the 4.5PN secular equations. Any preference between them is irrelevant at
-physically realistic ε values.
-
 ---
 
 ## Initial Conditions
