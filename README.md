@@ -80,13 +80,13 @@ Both integrators use a tolerance $10^{-14}$. Their end-states agree to machine p
 
 ## Overall Winner: Tucker-Will (TW) — but marginally
 
-**Win rate:** TW converges to QLT better in **11 out of 15** comparisons (73.3%)
+**Win rate:** TW converges to QLT better in **9 out of 15** comparisons (60%), with 3 ties at ε = 0.002 where both methods are indistinguishable
 
-| Variable | TW Wins | Feireisl Wins | Victor |
-|----------|---------|---------------|--------|
-| **p** (semi-major axis) | 5/5 (100%) | 0/5 (0%) | **TW** ✓ |
-| **α** (eccentricity vector x) | 1/5 (20%) | 4/5 (80%) | **Feireisl** ✓ |
-| **β** (eccentricity vector y) | 5/5 (100%) | 0/5 (0%) | **TW** ✓ |
+| Variable | TW Wins | Feireisl Wins | Ties | Victor |
+|----------|---------|---------------|------|--------|
+| **p** (semi-major axis) | 4/5 | 0/5 | 1/5 | **TW** (tied at ε=0.002) |
+| **α** (eccentricity vector x) | 0/5 | 4/5 | 1/5 | **Feireisl** (tied at ε=0.002) |
+| **β** (eccentricity vector y) | 4/5 | 0/5 | 1/5 | **TW** (tied at ε=0.002) |
 
 ---
 
@@ -113,9 +113,9 @@ Both integrators use a tolerance $10^{-14}$. Their end-states agree to machine p
 - **β**: Feireisl = 1.484e-06 | TW = 1.484e-06 → TW better by 0.001%
 
 ### ε = 0.002 (perturbative regime)
-- **p**: Feireisl = 1.803e-06 | TW = 1.803e-06 → **Indistinguishable**
-- **α**: Feireisl = 1.814e-07 | TW = 1.814e-07 → **Indistinguishable**
-- **β**: Feireisl = 3.471e-07 | TW = 3.471e-07 → **Indistinguishable**
+- **p**: Feireisl = 1.803e-06 | TW = 1.803e-06 → **Tied (indistinguishable)**
+- **α**: Feireisl = 1.814e-07 | TW = 1.814e-07 → **Tied (indistinguishable)**
+- **β**: Feireisl = 3.471e-07 | TW = 3.471e-07 → **Tied (indistinguishable)**
 
 ---
 
@@ -169,19 +169,19 @@ Both methods converge at the same **ε² leading order** (log-log slope ≈ 2.0)
 
 ### Key Findings
 
-1. **TW wins 73.3% of comparisons** (11/15), but only decisively in the **p variable**. For α and β, the methods are effectively tied.
+1. **TW wins 60% of comparisons** (9/15, excluding 3 ties at ε = 0.002 where both methods are indistinguishable). **Feireisl dominates decisively in α** (4/5 wins), while TW dominates in p and β.
 
-2. **TW's advantage is ε³-suppressed**: The 4.4% lead at ε = 0.032 collapses to <0.01% at ε = 0.004, making it physically negligible for astrophysical applications.
+2. **At ε = 0.002, both methods become numerically identical**: All three variables show machine-precision agreement, indicating convergence to the same limit.
 
-3. **Both converge at ε² rate**: This confirms correct 4.5PN implementations with identical leading-order accuracy.
+3. **TW's advantage is ε³-suppressed**: The 4.4% lead at ε = 0.032 collapses to <0.01% at ε = 0.004, and disappears entirely at ε = 0.002.
 
-4. **Feireisl marginally better for α**: Feireisl wins 80% of comparisons for the α component, though the differences are tiny (~0.1% or less).
+4. **Both converge at ε² rate**: This confirms correct 4.5PN implementations with identical leading-order accuracy.
 
 ### Recommendation
 
-**For astrophysical applications (ε ≲ 0.01):** The choice between Feireisl and Tucker-Will is **irrelevant**. Both methods are numerically equivalent at the precision needed for gravitational-wave physics. Use whichever is computationally more convenient.
+**For astrophysical applications (ε ≲ 0.01):** The choice between Feireisl and Tucker-Will is **irrelevant**. Both methods converge to identical results at ε = 0.002, demonstrating numerical equivalence at physically relevant PN regimes. At ε ≲ 0.01, TW's marginal advantage disappears and both methods give indistinguishable results.
 
-**For numerical analysis or high-PN validation:** TW has a marginal but consistent advantage and could be preferred for maximum accuracy, but only if ε values exceed ~0.01.
+**For numerical analysis or high-PN validation (ε ≥ 0.02):** TW has a small but consistent advantage in p and β (4.4% at ε = 0.032), while Feireisl is marginally better in α. If forced to choose, TW wins slightly more comparisons overall, but the advantage is within perturbative PN accuracy limits.
 
 ---
 
