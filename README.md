@@ -80,23 +80,9 @@ TW is marginally closer to QLT by 4.4% at ε = 0.032, but this advantage is ε³
 The figure below shows $|\Delta p(\varphi_\mathrm{end})|$ vs $\varepsilon$ for the three pairwise comparisons.
 <img width="1009" height="771" alt="Screenshot 2026-06-30 at 13 20 57" src="https://github.com/user-attachments/assets/c8e42fc3-7641-402b-942b-b6059ce68f93" />
 
-**Order of convergence.** Both methods converge at the same rate. For `p`, the error is second-order: it drops by ~4x each time `eps` is halved. For `alpha` and `beta`, both methods show similarly super-quadratic behavior over this range. In terms of convergence order, Feireisl and TW are effectively tied — neither is asymptotically better.
-
-**Which is closer to QLT.** The differences are tiny and inconsistent in direction:
-
-| Variable | Closer method | Margin at eps = 2e-3 |
-|---|---|---|
-| `p` | TW | ~1.000019x (0.0019%) |
-| `alpha` | Feireisl | ~1.0000017x (0.00017%) |
-| `beta` | TW | ~1.0000009x (0.000086%) |
-
-**Practical conclusion.** TW has a slight edge in `p`, which dominates a collapsed scalar error norm, so TW is marginally preferable if a single metric is needed. But the two methods are asymptotically indistinguishable — these differences are at the level of roundoff-scale relative effects compared to the QLT error itself, not a meaningful difference in accuracy.
-
 ## Numerical Comparison: Feireisl vs Tucker-Will at 4.5PN
 
-Adaptive RK4 (tol = 1e-14) integration of the orbit-averaged secular equations
-over φ ∈ [0, 100], initial state p = 10, α = 0.1, β = 0.1, five ε values
-∈ {0.032, 0.016, 0.008, 0.004, 0.002}.
+Adaptive RK4 (tol = 1e-14) integration of the orbit-averaged secular equations over φ ∈ [0, 100], initial state p = 10, α = 0.1, β = 0.1, five ε values ∈ {0.032, 0.016, 0.008, 0.004, 0.002}.
 
 ### Convergence to QLT
 
@@ -108,14 +94,33 @@ over φ ∈ [0, 100], initial state p = 10, α = 0.1, β = 0.1, five ε values
 | Feireisl vs TW | p | 4.82 | ε⁵ |
 | Feireisl vs TW | α, β | 5.11 | ε⁵ |
 
-Both Feireisl and TW converge to QLT with the same asymptotic ε² rate and
-nearly identical prefactors, confirming correct independent implementations of
-the 4.5PN secular equations.
+Both Feireisl and TW converge to QLT with the same asymptotic ε² rate and nearly identical prefactors, confirming correct independent implementations of the 4.5PN secular equations.
 
-The Feireisl–TW mutual difference scales as **ε⁵** (doubling ratio ≈ 32 = 2⁵
-across three clean steps), indicating they first disagree at **5PN order** —
-consistent with identical 4.5PN content but different resummation choices
-generating distinct 5PN remainders.
+The Feireisl–TW mutual difference scales as ε⁵ (doubling ratio ≈ 32 = 2⁵ across three clean steps), indicating they first disagree at 5PN order — consistent with identical 4.5PN content but different resummation choices generating distinct 5PN remainders.
+
+### Which method is closer to QLT
+
+The differences are tiny and inconsistent in direction:
+
+| Variable | Closer method | Margin at ε = 2×10⁻³ |
+|---|---|---|
+| p | TW | ~1.000019x (0.0019%) |
+| α | Feireisl | ~1.0000017x (0.00017%) |
+| β | TW | ~1.0000009x (0.000086%) |
+
+### Practical magnitude
+
+| ε | TW closer to QLT (in p) by |
+|---|---|
+| 0.032 | 4.40% |
+| 0.016 | 0.55% |
+| 0.008 | 0.069% |
+| 0.004 | 0.009% |
+| 0.002 | 0.002% |
+
+TW has a marginal advantage in p at large ε, but the gap is ε³-suppressed (drops by ≈ 8³ = 512× over the tested range) and is physically negligible for ε ≲ 0.01. For α and β the two methods are effectively tied across all tested values.
+
+**Conclusion:** Feireisl and TW are numerically equivalent implementations of the 4.5PN secular equations. Any preference between them is irrelevant at physically realistic ε values.
 
 ### Practical magnitude
 
