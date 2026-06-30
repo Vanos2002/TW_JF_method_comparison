@@ -93,29 +93,29 @@ Both integrators use a tolerance $10^{-14}$. Their end-states agree to machine p
 ## Per-Epsilon Comparison
 
 ### ε = 0.032 (large PN regime)
-- **p**: Feireisl = 4.633e-04 | TW = 4.429e-04 → **TW better by 4.40%**
+- **p**: Feireisl = 4.633e-04 | TW = 4.429e-04 → TW better by 4.40%
 - **α**: Feireisl = 1.384e-04 | TW = 1.389e-04 → Feireisl better by 0.31%
 - **β**: Feireisl = 1.814e-04 | TW = 1.810e-04 → TW better by 0.24%
 
 ### ε = 0.016
-- **p**: Feireisl = 1.155e-04 | TW = 1.148e-04 → **TW better by 0.55%**
+- **p**: Feireisl = 1.155e-04 | TW = 1.148e-04 → TW better by 0.55%
 - **α**: Feireisl = 2.235e-05 | TW = 2.237e-05 → Feireisl better by 0.06%
 - **β**: Feireisl = 3.298e-05 | TW = 3.297e-05 → TW better by 0.04%
 
 ### ε = 0.008
-- **p**: Feireisl = 2.886e-05 | TW = 2.884e-05 → **TW better by 0.07%**
+- **p**: Feireisl = 2.886e-05 | TW = 2.884e-05 → TW better by 0.07%
 - **α**: Feireisl = 4.054e-06 | TW = 4.055e-06 → Feireisl better by 0.01%
 - **β**: Feireisl = 6.706e-06 | TW = 6.706e-06 → TW better by 0.006%
 
 ### ε = 0.004 (modest PN regime)
-- **p**: Feireisl = 7.213e-06 | TW = 7.213e-06 → **TW better by 0.01%**
+- **p**: Feireisl = 7.213e-06 | TW = 7.213e-06 → TW better by 0.01%
 - **α**: Feireisl = 8.217e-07 | TW = 8.218e-07 → Feireisl better by 0.002%
 - **β**: Feireisl = 1.484e-06 | TW = 1.484e-06 → TW better by 0.001%
 
 ### ε = 0.002 (perturbative regime)
-- **p**: Feireisl = 1.803e-06 | TW = 1.803e-06 → **Tied (indistinguishable)**
-- **α**: Feireisl = 1.814e-07 | TW = 1.814e-07 → **Tied (indistinguishable)**
-- **β**: Feireisl = 3.471e-07 | TW = 3.471e-07 → **Tied (indistinguishable)**
+- **p**: Feireisl = 1.803e-06 | TW = 1.803e-06 → Tied (indistinguishable)
+- **α**: Feireisl = 1.814e-07 | TW = 1.814e-07 → Tied (indistinguishable)
+- **β**: Feireisl = 3.471e-07 | TW = 3.471e-07 → Tied (indistinguishable)
 
 ---
 
@@ -125,7 +125,7 @@ Using geometric mean (more appropriate for errors spanning many orders of magnit
 
 | Variable | Feireisl | TW | Advantage |
 |----------|----------|----|----|
-| **p** | 2.89e–05 | 2.86e–05 | **TW by 1.03%** |
+| **p** | 2.89e–05 | 2.86e–05 | TW by 1.03% |
 | **α** | 4.51e–06 | 4.52e–06 | Feireisl by 0.08% |
 | **β** | 7.30e–06 | 7.29e–06 | TW by 0.06% |
 
