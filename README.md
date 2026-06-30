@@ -68,8 +68,8 @@ To ensure all results are independent of the integration scheme, two entirely in
 
 | Method | Type | Order | Step control | Step size limits | Max steps |
 |---|---|---|---|---|---|
-| Adaptive RK4 | Explicit | 4 | Step-doubling, scale $(0.9 \cdot (\mathrm{tol}/\mathrm{err})^{0.2})$ | $[10^{-10},\ 10^{-2}]$ | $10^5$ |
-| Implicit Gauss collocation | Implicit | High | Fixed tolerance | $[10^{-10},\ 10^{-2}]$ | $10^5$ |
+| Adaptive RK4 | Explicit | 4 | Step-doubling, scale $(0.9 \cdot (\mathrm{tol}/\mathrm{err})^{0.2})$ | $[10^{-13},\ 10^{-3}]$ | $10^7$ |
+| Implicit Gauss collocation | Implicit | High | Fixed tolerance | $[10^{-13},\ 10^{-3}]$ | $10^7$ |
 
 
 Both integrators use a tolerance $10^{-14}$. Their end-states agree to machine precision across all $\varepsilon$ values tested, confirming that all observed differences between methods are physical, not numerical.
