@@ -204,6 +204,10 @@ Both methods converge at the same **ε² leading order** (log-log slope ≈ 2.0)
 | $\alpha_0$ | $0.1$ |
 | $\beta_0$ | $0.1$ |
 | $e_0$ | $0.1\sqrt{2}$ |
+| $\tilde{p}_0$ | $\approx 12.8$ |
+| $\tilde{\alpha}_0$ | $\approx 0.326$ |
+| $\tilde{\beta}_0$ | $\approx 0.115$ |
+| $\tilde{e}_0$ | $\approx 0.346$ |
 | $\eta$ | $0.25$ (equal mass) |
 | $\varphi_\mathrm{end}$ | $100$ |
 | $\varepsilon$ scan | $\{0.032,\ 0.016,\ 0.008,\ 0.004,\ 0.002\}$ |
