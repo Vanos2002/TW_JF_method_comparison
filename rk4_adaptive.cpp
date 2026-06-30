@@ -882,33 +882,9 @@ SecularRHS compute_secular_RHS_TW(const BinaryState& state, const PhysicalParams
 static double compute_dtheta_dphi(const BinaryState& state,
                                   const PhysicalParams& params,
                                   double phi) {
-    static const PNCoeffs K = buildCoefficients(true);
-
-    double p = state.p;
-    double alpha = state.alpha;
-    double beta = state.beta;
-    double e = std::sqrt(alpha * alpha + beta * beta);
-    double GM = params.G * params.M;
-    double c_val = (params.eps != 0.0) ? 1.0 / params.eps : std::numeric_limits<double>::infinity();
-
-    double r = normR(p, e, alpha, beta, phi);
-    double rd = rDot(p, e, alpha, beta, phi);
-    double v2 = normV2(p, e, alpha, beta, phi);
-    double rd2 = rd * rd;
-    double gmr = GM / r;
-
-    double Btot = 0.0;
-    const int qlt_ord = 3; // mapSecularOrderToQLTOrder(5)
-    for (int N = 1; N <= qlt_ord; ++N) {
-        Btot += sumTable(K.b, N, rd2, v2, gmr, c_val);
-    }
-
-    double dphi_dt_pn = std::sqrt(GM * p) * (1.0 + Btot) / (r * r);
-    double dphi_dt_newt = std::sqrt(GM * p) / (r * r);
-    if (dphi_dt_pn == 0.0) {
-        return 0.0;
-    }
-    return params.eps * dphi_dt_newt / dphi_dt_pn;
+    (void)state;
+    (void)phi;
+    return params.eps;
 }
 
 SecularRHS compute_feireisl_physical_RHS(const BinaryState& state,
