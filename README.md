@@ -108,6 +108,8 @@ The differences are tiny and inconsistent in direction:
 | α | Feireisl | ~1.0000017x (0.00017%) |
 | β | TW | ~1.0000009x (0.000086%) |
 
+<img width="1676" height="557" alt="Screenshot 2026-06-30 at 14 04 09" src="https://github.com/user-attachments/assets/c656927e-5bfd-4658-b2d1-6cf307662b18" />
+
 ### Practical magnitude
 
 | ε | TW closer to QLT (in p) by |
