@@ -733,30 +733,8 @@ def compute_secular_rhs_TW(state: BinaryState, params: PhysicalParams,
 
 def _compute_dtheta_dphi(state: BinaryState, params: PhysicalParams,
                          phi: float) -> float:
-    """Instantaneous dtheta/dphi from PN angular momentum balance."""
-    K = _get_K()
-    p, alpha, beta = state.p, state.alpha, state.beta
-    GM = params.G * params.M
 
-    e = math.sqrt(alpha * alpha + beta * beta)
-    r = norm_r(p, e, alpha, beta, phi)
-    rd = r_dot(p, e, alpha, beta, phi)
-    v2 = norm_v2(p, e, alpha, beta, phi)
-    rd2 = rd * rd
-    gmr = GM / r
-    c_val = 1.0 / params.eps if params.eps != 0.0 else float("inf")
-
-    Btot = 0.0
-    qlt_ord = _map_secular_order_to_qlt_order(5)
-    for N in range(1, qlt_ord + 1):
-        Btot += sum_table(K.b, N, rd2, v2, gmr, c_val)
-
-    dphi_dt = math.sqrt(GM * p) * (1.0 + Btot) / (r * r)
-    dphi_dt_newt = math.sqrt(GM * p) / (r * r)
-    if dphi_dt == 0.0:
-        return 0.0
-
-    return params.eps * dphi_dt_newt / dphi_dt
+    return params.eps
 
 
 def _compute_tilde_rhs_in_phi(
