@@ -76,10 +76,25 @@ Both integrators use a tolerance $10^{-14}$. Their end-states agree to machine p
 
 ---
 ## Results
-TW is marginally closer to QLT by 4.4% at ε = 0.032, but this advantage is ε³-suppressed and becomes completely negligible at physically relevant ε values — at ε = 0.004 (already a modest PN regime) the difference is below 0.002%. 
+TW is marginally closer to QLT by 4.4% at ε = 0.032, but this advantage is ε³-suppressed and becomes completely negligible at physically relevant ε values — at ε = 0.004 (already a modest PN regime) the difference is below 0.009%. 
 The figure below shows $|\Delta p(\varphi_\mathrm{end})|$ vs $\varepsilon$ for the three pairwise comparisons.
 <img width="1009" height="771" alt="Screenshot 2026-06-30 at 13 20 57" src="https://github.com/user-attachments/assets/c8e42fc3-7641-402b-942b-b6059ce68f93" />
 
+Convergence rate to QLT
+For p, both are about second-order: error drops by about 4x when epsilon is halved.
+For alpha and beta, both methods show very similar super-quadratic behavior over this range.
+So in terms of order of convergence, Feireisl and TW are effectively tied.
+Which one is closer to QLT errors:
+p: TW is consistently better (smaller error), but only slightly.
+alpha: Feireisl is consistently better, by tiny amounts.
+beta: TW is consistently better, by tiny amounts.
+At epsilon = 2e-3:
+p: TW better by factor about 1.000019 (about 0.0019%)
+alpha: Feireisl better by factor about 1.0000017 (about 0.00017%)
+beta: TW better by factor about 1.0000009 (about 0.000086%)
+Overall practical conclusion
+TW has a small edge in p (the dominant component numerically here), so if you collapse to a single scalar error norm, TW is marginally better.
+But asymptotically they are nearly indistinguishable: differences are at the level of roundoff-scale relative effects compared to the QLT error itself.
 
 The deviation from ε⁵ at small ε is not a physical effect but a consequence of the integrator tolerance, and it actually confirms the result: the two implementations are in close numerical agreement at 4.5PN that their difference becomes unresolvable below a certain ε.
 
