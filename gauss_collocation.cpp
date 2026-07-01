@@ -171,10 +171,12 @@ PNCoeffs buildCoefficients(const bool include_4p5PN = true)
 // Orbital kinematics
 // e = sqrt(alpha^2 + beta^2) is computed from (alpha, beta)
 static double normR(double p, double e, double alpha, double beta, double phi){
-    return p / (1.0 + e*(alpha*cos(phi) + beta*sin(phi)));
+    (void)e;
+    return p / (1.0 + alpha*cos(phi) + beta*sin(phi));
 }
 static double rDot(double p, double e, double alpha, double beta, double phi){
-    return sqrt(G*M*p)*e/p * (alpha*sin(phi) - beta*cos(phi));
+    (void)e;
+    return sqrt(G*M*p)/p * (alpha*sin(phi) - beta*cos(phi));
 }
 static double normV2(double p, double e, double alpha, double beta, double phi){
     double r  = normR(p,e,alpha,beta,phi);
@@ -211,7 +213,8 @@ QLTrhs computeQLT(const PNCoeffs& K, double p,
     double eps = 1.0/c_val;
 
     double Atot=0, Btot=0;
-    for (int N=1;N<=PNorder;++N){
+    int conservativeOrder = std::min(PNorder, 2);
+    for (int N=1;N<=conservativeOrder;++N){
         Atot += sumTable(K.a,N,rd2,v2,gmr,c_val);
         Btot += sumTable(K.b,N,rd2,v2,gmr,c_val);
     }
@@ -225,7 +228,7 @@ QLTrhs computeQLT(const PNCoeffs& K, double p,
     double rr_S_pre = (8.0/5.0)*eta*eps3*pow(G*M/(r*r),2)*sqrt(G*M*p);
 
     double ScR = G*M/(r*r)*(Atot+Btot) + rr_R_pre*(Crr+Drr);
-    double ScS = G*M/(r*r*r)*sqrt(G*M*p)*rd*Btot + rr_S_pre*Drr;
+    double ScS = G*M/(r*r*r)*(sqrt(G*M*p)/rd)*Btot + rr_S_pre*Drr;
 
     // Definition of the QLT equations of motion (see eq. 2.8 in the paper) 
     double dp_dphi = 2.0*r*r*r/(G*M)*ScS;
@@ -234,7 +237,6 @@ QLTrhs computeQLT(const PNCoeffs& K, double p,
 
     return {dp_dphi, dalpha, dbeta};
 }
-
 
 
 
@@ -319,6 +321,7 @@ static QLTrhs computeQLTDissipativeOrder(const PNCoeffs& K,
 
     return {dp_dphi, dalpha, dbeta};
 }
+
 static QLTrhs averageQLTRHS(const std::function<QLTrhs(double)>& f, int samples = PHI_AVERAGE_SAMPLES) {
     QLTrhs sum{0.0, 0.0, 0.0};
     double h = 2.0 * PI / samples;
