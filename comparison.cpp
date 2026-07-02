@@ -821,7 +821,7 @@ static double compute_dtheta_dphi(const BinaryState& state,
                                   double phi) {
     (void)state;
     (void)phi;
-    return 1.0; //params.eps;
+    return params.eps;
 }
 
 SecularRHS compute_feireisl_physical_RHS(const BinaryState& state,
