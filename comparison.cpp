@@ -1015,12 +1015,12 @@ private:
     double tolerance;
     double min_step;
     double max_step;
-    int max_steps;
+    long double max_steps;
     
     typedef std::function<SecularRHS(const BinaryState&, const PhysicalParams&, double)> RHSFunc;
     
 public:
-    AdaptiveRK4Integrator(double tol = 1e-4, double h_min = 1e-5, double h_max = 0.1, int max = 100)
+    AdaptiveRK4Integrator(double tol = 1e-4, double h_min = 1e-5, double h_max = 0.1, long double max = 100)
         : tolerance(tol), min_step(h_min), max_step(h_max), max_steps(max) {}
     
     std::pair<BinaryState, double> adaptiveStep(
@@ -1073,7 +1073,7 @@ public:
         result.error_estimates.push_back(0.0);
         
         while ((h > 0 && current_theta < theta_end) || (h < 0 && current_theta > theta_end)) {
-            if (step_count >= max_steps) break;
+            if (static_cast<long double>(step_count) >= max_steps) break;
             
             double h_attempt = h;
             if (h > 0 && current_theta + h > theta_end) {
@@ -1124,7 +1124,7 @@ public:
         BinaryState cur  = initial_state;
         double      phi  = phi_start;
         double      h    = max_step;
-        int         steps = 0;
+        long double steps = 0.0L;
 
         double p_cur = get_p(cur, params, phi);
 
@@ -1157,7 +1157,7 @@ public:
                     cur   = next;
                     phi  += h_attempt;
                     p_cur = p_next;
-                    steps++;
+                    steps += 1.0L;
 
                     double scale = 0.9 * std::pow(tolerance / (error + 1e-16), 0.2);
                     h *= std::max(0.1, std::min(2.0, scale));
@@ -1948,21 +1948,20 @@ std::vector<DeltaPhiRow> computeDeltaPhiVsEpsilonScan(
     const BinaryState&         initial_physical,   // p_init=50, alpha=0.1, beta=0.1
     double                     p_final,            // 20
     const std::vector<double>& epsilon_values,
-    double                     tolerance,
-    bool                       fast_debug = false
+    double                     tolerance
 ) {
     // Keep QLT as the reference, but give it a dedicated budget because it must
     // resolve fast orbital oscillations. Secular methods remain cheap and can
     // use large macro-steps.
-    const double qlt_min_step = 1e-6;
-    const double qlt_max_step = 1.0;
-    const int integration_max_steps = fast_debug ? 10000000 : 100000000;
+    const double qlt_min_step = 1e-13;
+    const double qlt_max_step = 1e-3;
+    const long double integration_max_steps = 1e20L;
     
     const int    qlt_retry_factor = 4;
     const int    qlt_retry_count = 3;
 
-    const double secular_min_step = 1e-6;
-    const double secular_max_step = 1.0;
+    const double secular_min_step = 1e-13;
+    const double secular_max_step = 1e-3;
 
     std::vector<DeltaPhiRow> rows;
     rows.reserve(epsilon_values.size());
@@ -2039,7 +2038,7 @@ std::vector<DeltaPhiRow> computeDeltaPhiVsEpsilonScan(
                                         const auto& rhs,
                                         const auto& get_p) {
             bool reached = false;
-            int max_steps_cur = integration_max_steps;
+            long double max_steps_cur = integration_max_steps;
             double phi_hit = 0.0;
 
             for (int attempt = 0; attempt <= qlt_retry_count; ++attempt) {
@@ -2052,7 +2051,7 @@ std::vector<DeltaPhiRow> computeDeltaPhiVsEpsilonScan(
                 if (attempt < qlt_retry_count) {
                     std::cout << "    [extend] " << label
                               << " did not reach p_final; increasing max_steps to "
-                              << (max_steps_cur * qlt_retry_factor) << std::endl;
+                              << static_cast<double>(max_steps_cur * qlt_retry_factor) << std::endl;
                     max_steps_cur *= qlt_retry_factor;
                 }
             }
@@ -2276,21 +2275,18 @@ int main(int argc, char** argv) {
     initializeOutputBaseDir((argv != nullptr) ? argv[0] : nullptr);
 
     PhysicalParams params{1.0, 1.0, 0.25, 0.0, 1.0};
-    const bool fast_debug = false;
-    double tolerance = 1e-6;
+    double tolerance = 1e-10;
     int max_PN_order = 5;   // 4.5PN order
 
     std::cout << "=== Adaptive RK4 Integration Comparison ===" << std::endl;
     std::cout << "PN order: " << max_PN_order << " (4.5PN)" << std::endl;
     std::cout << "Tolerance: " << tolerance << std::endl;
-    std::cout << "Mode: " << (fast_debug ? "FAST DEBUG" : "FULL ACCURACY") << std::endl;
+    std::cout << "Mode: FULL ACCURACY" << std::endl;
 
     // ── Delta-phi scan: p_init=50 -> p_final=20 ─────────────────────────────
     BinaryState initial_p50{50.0, 0.1, 0.1};
     double p_final = 20.0;
-    std::vector<double> delta_phi_eps_values = fast_debug
-        ? std::vector<double>{1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625, 0.0078125, 0.00390625}
-        : std::vector<double>{1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625, 0.0078125, 0.00390625};
+    std::vector<double> delta_phi_eps_values = {1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625, 0.0078125, 0.00390625};
 
     auto delta_phi_rows = computeDeltaPhiVsEpsilonScan(
         params,
@@ -2298,8 +2294,7 @@ int main(int argc, char** argv) {
         initial_p50,
         p_final,
         delta_phi_eps_values,
-        tolerance,
-        fast_debug
+        tolerance
     );
     plotDeltaPhiVsEpsilon(delta_phi_rows, "delta_phi_vs_epsilon_p50top20_fromcpp_rk4.png");
 
