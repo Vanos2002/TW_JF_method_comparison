@@ -271,59 +271,6 @@ using SecularRHS = std::array<double, 3>;
 std::array<double, 3> oscillatory_1PN(const BinaryState& state, const PhysicalParams& params);
 std::array<double, 3> oscillatory_2PN(const BinaryState& state, const PhysicalParams& params);
 
-static constexpr int PHI_AVERAGE_SAMPLES = 512;
-using QLTrhsFunc = std::function<QLTrhs(const BinaryState&)>;
-
-static QLTrhs addQLT(const QLTrhs& a, const QLTrhs& b) {
-    return {a.dp + b.dp, a.dalpha + b.dalpha, a.dbeta + b.dbeta};
-}
-
-static QLTrhs subQLT(const QLTrhs& a, const QLTrhs& b) {
-    return {a.dp - b.dp, a.dalpha - b.dalpha, a.dbeta - b.dbeta};
-}
-
-static QLTrhs scaleQLT(const QLTrhs& a, double s) {
-    return {a.dp * s, a.dalpha * s, a.dbeta * s};
-}
-
-static QLTrhs computeQLTDissipativeOrder(const PNCoeffs& K,
-                                        const BinaryState& state,
-                                        const PhysicalParams& params,
-                                        int dissipativeOrder)
-{
-    double p = state.p;
-    double alpha = state.alpha;
-    double beta = state.beta;
-    double phi = params.phi;
-    double c_val = 1.0 / params.eps;
-    double e = std::sqrt(alpha*alpha + beta*beta);
-    double r = normR(p, e, alpha, beta, phi);
-    double rd = rDot(p, e, alpha, beta, phi);
-    double v2 = normV2(p, e, alpha, beta, phi);
-    double rd2 = rd * rd;
-    double GM = params.G * params.M;
-    double eta = params.eta;
-    double gmr = GM / r;
-
-    double Crr = sumTable(K.c, dissipativeOrder, rd2, v2, gmr, c_val);
-    double Drr = sumTable(K.d, dissipativeOrder, rd2, v2, gmr, c_val);
-
-    double eps = params.eps;
-    double eps3 = eps * eps * eps;
-    double rr_R_pre = (8.0 / 5.0) * eta * eps3 * GM * GM / std::pow(r, 3) * rd;
-    double rr_S_pre = (8.0 / 5.0) * eta * eps3 * std::pow(GM / (r * r), 2) * std::sqrt(GM * p);
-
-    double ScR = rr_R_pre * (Crr + Drr);
-    double ScS = rr_S_pre * Drr;
-
-    double dp_dphi = 2.0 * r * r * r / GM * ScS;
-    double dalpha  = r * r / GM * (ScR * std::sin(phi) + ScS * (alpha + std::cos(phi)) * (1.0 + r / p) - ScS * alpha);
-    double dbeta   = r * r / GM * (-ScR * std::cos(phi) + ScS * (beta + std::sin(phi)) * (1.0 + r / p) - ScS * beta);
-
-    return {dp_dphi, dalpha, dbeta};
-}
-
-
 
 SecularRHS secular_1PN(const BinaryState& state, const PhysicalParams& params) {
     const double& p = state.p;
