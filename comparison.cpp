@@ -1847,35 +1847,6 @@ void plotLogPhiVsLogEpsilon(const std::vector<EpsPhiRow>& rows, const std::strin
     std::cout << "log(phi) vs log(epsilon) plot written to: " << out_path << std::endl;
 }
 
-void writeEpsilonConvergenceCSV(
-    const BinaryState& initial_state,
-    const PhysicalParams& params,
-    int max_PN_order,
-    double theta_start,
-    double theta_end,
-    double tolerance,
-    const std::string& output_file
-) {
-    std::ofstream outfile = openOutputCsv(output_file);
-    if (!outfile.is_open()) {
-        return;
-    }
-    outfile << std::scientific << std::setprecision(10);
-    outfile << "eps,phi,max_diff,feireisl_steps,tw_steps\n";
-
-    std::vector<double> eps_values = {0.032, 0.016, 0.008, 0.004, 0.002};
-    for (double eps : eps_values) {
-        PhysicalParams scan_params = params;
-        scan_params.eps = eps;
-        auto result = runEpsilonConvergenceScan(initial_state, scan_params, max_PN_order,
-                                                theta_start, theta_end, tolerance);
-        outfile << result.eps << "," << result.phi << "," << result.max_diff << ","
-                << result.feireisl_steps << "," << result.tw_steps << "\n";
-    }
-    outfile.close();
-    std::cout << "Epsilon convergence scan written to: " << output_file << std::endl;
-}
-
 // ============================================================================
 // DELTA-PHI VS EPSILON SCAN  (stop integration when p reaches p_final)
 // ============================================================================
